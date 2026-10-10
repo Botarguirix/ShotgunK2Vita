@@ -3,6 +3,10 @@
 Investigación de un port de Shotgun King a PS Vita. Estado: diagnóstico nativo;
 el motor y el juego todavía no están integrados. Este VPK no ejecuta Shotgun King.
 
+El APK recibido contiene únicamente ARM64; se descarta el so-loader directo
+para ese archivo. Consulte la [evaluación de archivos](docs/FEASIBILITY.md)
+para las dependencias comprobadas y alternativas de implementación.
+
 ## Compilar
 
 Requiere VitaSDK, CMake y un entorno Linux/WSL.
