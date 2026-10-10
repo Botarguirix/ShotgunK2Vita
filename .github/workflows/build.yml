@@ -1,4 +1,4 @@
-name: Build diagnostic VPK
+name: Build experimental VPK
 on:
   push:
   workflow_dispatch:
@@ -13,6 +13,6 @@ jobs:
         run: bash scripts/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: ShotgunK2Vita-diagnostic
-          path: build/ShotgunK2Vita-diagnostic.vpk
+          name: ShotgunK2Vita-bootstrap
+          path: build/ShotgunK2Vita-bootstrap.vpk
           if-no-files-found: error

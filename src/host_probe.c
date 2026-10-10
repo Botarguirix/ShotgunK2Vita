@@ -1,0 +1,5 @@
+#include "runtime.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "graphics.h"
+int main(int argc,char **argv){if(argc<2)return 2;int ok=sg_boot(argv[1],stdout);int frames=argc>2?atoi(argv[2]):600;int i;for(i=0;ok&&i<frames;i++){unsigned buttons=i==300||i==400||(argc>3&&(i==650||i==900||i==1200||i==1500||i==1800||i==2100||i==2400||i==2700||i==3000||i==3300))?SG_CROSS:0;if(argc>3&&(i==1600||i==1700))buttons=SG_DOWN;if(argc>3&&i==4200)buttons=SG_UP;if(argc>3&&i==4300)buttons=SG_CROSS;if(argc>3&&i==4500)buttons=SG_R;ok=sg_step(buttons,128,128,128,128,0,160,90);if(i%300==299){printf("Frame %d\n",i);sg_report_state();}if(!ok)printf("Stopped at frame %d\n",i);}printf("Completed %d frames; success=%d\n",i,ok);sg_report_state();uint32_t pixels[320*180];sg_present(pixels,320,180);FILE *f=ok?fopen("reports/host-frame.ppm","wb"):NULL;if(f){fprintf(f,"P6\n320 180\n255\n");for(int j=0;j<320*180;j++){unsigned char rgb[3]={pixels[j]&255,(pixels[j]>>8)&255,(pixels[j]>>16)&255};fwrite(rgb,1,3,f);}fclose(f);}sg_close();return ok?0:1;}
