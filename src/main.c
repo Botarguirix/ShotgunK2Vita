@@ -18,7 +18,7 @@ static void rect(int x,int y,int w,int h,uint32_t color) {
             if(i>=0 && j>=0) pixels[j*WIDTH+i]=color;
 }
 int main(void) {
-    SceUID block=sceKernelAllocMemBlock("SG2Vita frame",SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,0x200000,NULL);
+    SceUID block=sceKernelAllocMemBlock("ShotgunK2Vita frame",SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,0x200000,NULL);
     if(block<0) return 1;
     sceKernelGetMemBlockBase(block,(void **)&pixels);
     SceDisplayFrameBuf frame={sizeof(frame),pixels,WIDTH,SCE_DISPLAY_PIXELFORMAT_A8B8G8R8,WIDTH,HEIGHT};
@@ -26,7 +26,7 @@ int main(void) {
     sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);
     mkdir("ux0:data/sg2vita",0777);
     FILE *log=fopen("ux0:data/sg2vita/diagnostic.log","w");
-    if(log) { fputs("SG2Vita 0.1 diagnostic. Game engine NOT integrated.\n",log); fflush(log); }
+    if(log) { fputs("ShotgunK2Vita 0.1 diagnostic. Game engine NOT integrated.\n",log); fflush(log); }
     int x=480,y=272; uint32_t previous=0; unsigned frames=0;
     while(1) {
         SceCtrlData pad={0}; SceTouchData touch={0};

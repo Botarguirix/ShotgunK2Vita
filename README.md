@@ -1,4 +1,4 @@
-# SG2Vita
+# ShotgunK2Vita
 
 Investigación de un port de Shotgun King a PS Vita. Estado: diagnóstico nativo;
 el motor y el juego todavía no están integrados. Este VPK no ejecuta Shotgun King.
@@ -12,7 +12,7 @@ export VITASDK=/home/bota/vitasdk
 bash scripts/build.sh
 ```
 
-Salida: `build/SG2Vita-diagnostic.vpk`, título `SGKV00001`.
+Salida: `build/ShotgunK2Vita-diagnostic.vpk`, título `SGKV00001`.
 Instalar con VitaShell. Mover el cursor con cruceta, stick izquierdo o pantalla
 táctil; X cambia el cursor a verde; START sale. Un tablero de prueba y dos
 indicadores verifican el framebuffer y la entrada táctil. El indicador inferior
