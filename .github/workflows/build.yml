@@ -1,0 +1,18 @@
+name: Build diagnostic VPK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  vita:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        shell: bash
+        run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SG2Vita-diagnostic
+          path: build/SG2Vita-diagnostic.vpk
+          if-no-files-found: error

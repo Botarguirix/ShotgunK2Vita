@@ -1,0 +1,10 @@
+/build/
+/private/
+/reports/
+*.apk
+*.apks
+*.xapk
+*.obb
+*.vpk
+*.so
+__pycache__/
