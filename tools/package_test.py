@@ -7,6 +7,7 @@ import argparse
 import re
 from pathlib import Path
 from validate_vpk import validate
+from iteration_manifest import finalize
 
 root = Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
@@ -27,7 +28,7 @@ snapshot = out/'source'
 snapshot.mkdir()
 for name in ('src', 'scripts', 'tools', 'docs', 'tests', '.github'):
     shutil.copytree(root/name, snapshot/name, ignore=shutil.ignore_patterns('__pycache__', '*_once.py'))
-for name in ('CMakeLists.txt', 'README.md', '.gitignore', '.gitattributes'):
+for name in ('CMakeLists.txt', 'README.md', 'AGENTS.md', '.gitignore', '.gitattributes'):
     shutil.copy2(root/name, snapshot/name)
 third_party = snapshot/'third_party'
 third_party.mkdir()
@@ -52,6 +53,7 @@ if args.vpk_only:
     manifest={p.relative_to(out).as_posix():{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
               for p in (vpk,debug/'ShotgunK2Vita.elf',debug/'ShotgunK2Vita.map',diagnostic_tool)}
     (out/'SHA256-performance.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+    finalize(root, out, iteration)
     print(json.dumps(manifest,indent=2))
     raise SystemExit(0)
 data = out / 'shotgunk2vita-data.zip'
@@ -71,4 +73,5 @@ with zipfile.ZipFile(data) as z:
     assert not any(n.endswith(('.so', '.apk', '.sav')) for n in z.namelist())
 manifest = {p.name: {'bytes': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in (vpk, data)}
 (out / 'SHA256.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+finalize(root, out, iteration)
 print(json.dumps(manifest, indent=2))

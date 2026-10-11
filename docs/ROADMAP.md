@@ -1,5 +1,8 @@
 # Roadmap · ShotgunK2Vita
 
+Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
+Informe actual: [INFORME_ROADMAP_ITERACION07.md](INFORME_ROADMAP_ITERACION07.md).
+
 Actualizado: 2026-10-10. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
 00.03 es corregir costes evitables, habilitar audio y medir la consola.

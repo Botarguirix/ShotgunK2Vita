@@ -10,6 +10,8 @@ independiente, controles adaptados y un medidor de rendimiento. Falta verificar
 sus FPS, audio y estabilidad en hardware Vita.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
+- [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
+- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION07.md)
 - [Instalación del VPK 00.07](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
