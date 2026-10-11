@@ -4,7 +4,8 @@
 |---|---|---|
 | 00.02 | `artifacts/iterations/00.02/` | Bootstrap; arranque confirmado, 1–3 FPS y sin audio |
 | 00.03 | `artifacts/iterations/00.03/` | Rendimiento/audio; usuario reporta 0x8010113D |
-| 00.04 | `artifacts/iterations/00.04/` | PNG LiveArea corregidos; pendiente de instalación en Vita |
+| 00.04 | `artifacts/iterations/00.04/` | Usuario reporta mejora considerable de FPS, pero crasheo; sin medición exacta aún |
+| 00.05 | `artifacts/iterations/00.05/` | Logs persistentes por ejecución, traceback Lua y símbolos nativos; pendiente de prueba en Vita |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.

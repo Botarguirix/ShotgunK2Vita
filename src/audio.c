@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "diagnostics.h"
 #include "lauxlib.h"
 #include "perf.h"
 #include <stdlib.h>
@@ -66,6 +67,7 @@ static int register_asset(lua_State *L,int music){
  while(!strncmp(name,"../",3))name+=3;
  if(name[0]=='/'||strchr(name,':')||strstr(name,".."))return luaL_error(L,"Invalid audio path");
  Asset *a=&assets[asset_count];snprintf(a->path,sizeof(a->path),"%s/%s",data_root,name);snprintf(a->key,sizeof(a->key),"%s",key);
+ sg_diag_event(music?"music_register":"sfx_register",a->path);
  a->music=music;a->volume=clamp((float)luaL_optnumber(L,3,1),0,1);
  FILE *f=fopen(a->path,"rb");if(!f)return luaL_error(L,"Missing audio resource: %s",a->path);fclose(f);
  if(!music&&!load_wave(a)&&setup_log)fprintf(setup_log,"audio_fx_unsupported=%s (PCM16 WAV required)\n",name);
@@ -99,6 +101,7 @@ static int delfx(lua_State *L){int id=find_asset(luaL_checkstring(L,1),0);push((
 static void close_music(void){if(decoder_open)drmp3_uninit(&decoder);decoder_open=0;music_id=-1;music_frames=0;music_phase=0;}
 static int open_music(int id,int loop){
  close_music();if(id<0)return 1;
+ sg_diag_event("mp3_open",assets[id].path);
  if(!drmp3_init_file(&decoder,assets[id].path,NULL)){atomic_fetch_add(&music_failures,1);if(audio_log)fprintf(audio_log,"audio_mp3_open_failed=%s\n",assets[id].path);return 0;}
  decoder_open=1;if(decoder.channels<1||decoder.channels>2||decoder.sampleRate<8000||decoder.sampleRate>96000){close_music();return 0;}
  music_id=id;music_loop=loop;
@@ -170,7 +173,7 @@ static int audio_entry(SceSize size,void *arg){
  while(rc>=0&&!atomic_load_explicit(&quit,memory_order_acquire)){
   int16_t *p=buffers+active*frames*2;uint64_t start=sg_now_us();sg_audio_mix(p,frames);uint64_t fill=sg_now_us()-start;
   if(fill>max_fill)max_fill=fill;if(fill>(uint64_t)frames*1000000/RATE)late++;
-  rc=sceAudioOutOutput(port,p);active^=1;blocks++;
+  rc=sceAudioOutOutput(port,p);active^=1;blocks++;sg_diag_audio((unsigned)blocks,rc);
   if(audio_log&&blocks%120==0){fprintf(audio_log,"audio_blocks=%llu fill_max_us=%llu late_blocks=%llu queue_drops=%u rc=%d\n",(unsigned long long)blocks,(unsigned long long)max_fill,(unsigned long long)late,atomic_load(&dropped),rc);fflush(audio_log);}
  }
  sceAudioOutOutput(port,NULL);sceAudioOutReleasePort(port);free(buffers);
@@ -181,7 +184,9 @@ static int audio_entry(SceSize size,void *arg){
 int sg_audio_start(FILE *log){
  (void)log;
 #ifdef SG_VITA
- char path[1536];snprintf(path,sizeof(path),"%s/audio.log",data_root);audio_log=fopen(path,"w");
+ audio_log=sg_diag_open("audio.log");
+ if(!audio_log){char path[1536];snprintf(path,sizeof(path),"%s/audio.log",data_root);audio_log=fopen(path,"a");}
+ if(audio_log)setvbuf(audio_log,NULL,_IOLBF,4096);
  audio_thread=sceKernelCreateThread("SG native audio",audio_entry,0x100000E0,0x20000,0,SCE_KERNEL_CPU_MASK_USER_2,NULL);
  int rc=audio_thread<0?audio_thread:sceKernelStartThread(audio_thread,0,NULL);
  if(log){fprintf(log,"audio_thread=%d start_rc=%d log=audio.log\n",audio_thread,rc);fflush(log);}

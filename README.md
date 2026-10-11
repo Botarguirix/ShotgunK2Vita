@@ -10,7 +10,8 @@ independiente, controles adaptados y un medidor de rendimiento. Falta verificar
 sus FPS, audio y estabilidad en hardware Vita.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
-- [Instalación del VPK 00.04](docs/TEST_BUILD.md)
+- [Instalación del VPK 00.05](docs/TEST_BUILD.md)
+- [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
 
@@ -29,10 +30,12 @@ bash scripts/build.sh
 
 La corrección **00.04** convierte LiveArea a PNG indexados opacos de 8 bits,
 con paleta de 256 entradas, para resolver el error de instalación 0x8010113D.
-Conserva el runtime de rendimiento/audio de 00.03; pendiente de prueba en Vita.
+El usuario confirma mejora considerable de FPS tras 00.04 y reporta un crasheo.
+**00.05** añade logs por sesión que no se sobrescriben, checkpoints ~250 ms,
+trazas de errores Lua y símbolos nativos. Falta diagnosticar la causa del crash.
 
-Salida: `build-iterations/00.04/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.04. Cada versión usa una carpeta de compilación propia.
+Salida: `build-iterations/00.05/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.05. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -55,7 +58,8 @@ python3 tools/package_test.py
 ```
 
 Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.04/`. Cada versión ocupa su propia carpeta y el
+`artifacts/iterations/00.05/`. Incluye ELF/map con símbolos en `debug/`.
+Cada versión ocupa su propia carpeta y el
 empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.
 Para actualizar sólo el VPK: `python3 tools/package_test.py --vpk-only`.

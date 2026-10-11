@@ -1,4 +1,5 @@
 #pragma once
+unsigned sg_graphics_memory_kb(void);
 #include "lua.h"
 #include <stdint.h>
 void sg_graphics_init(lua_State *L,const char *root);

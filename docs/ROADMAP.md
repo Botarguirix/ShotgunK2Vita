@@ -5,6 +5,10 @@ pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
 00.03 es corregir costes evitables, habilitar audio y medir la consola.
 El usuario reportó después error 0x8010113D. La entrega 00.04 corrige los PNG
 RGBA de LiveArea y separa las compilaciones/entregas en carpetas por versión.
+Tras 00.04, el usuario informa una mejora considerable de FPS y un crasheo sin
+log recuperado. No hay aún valores exactos de FPS ni confirmación de audio.
+La iteración 00.05 añade logs por ejecución, checkpoints y símbolos para
+diagnosticar ese fallo; su causa sigue desconocida.
 No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 
 | Fase | Estado | Evidencia / criterio de salida |
@@ -14,10 +18,11 @@ No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 | Optimización de dibujo 00.03 | Implementada; pruebas de PC | Cache de glifos TTF, recorte de regiones, rellenos por filas y escalado con copias; escena de regresión coincide píxel a píxel |
 | Reparto entre núcleos | Implementado; pendiente en Vita | Lua permanece en un hilo; presentación repartida entre tres participantes con semáforos; imágenes de uno/tres hilos iguales en PC |
 | Herramienta de rendimiento | Implementada | HUD, CSV, informe HTML y presets; siguiente paso: recibir mediciones reales de Vita |
+| Diagnóstico de crasheos 00.05 | Implementado; pruebas de PC | Sesiones conservadas, checkpoints ~250 ms, traceback Lua, ELF/map con símbolos; fixture de terminación abrupta y reapertura |
 | Música y efectos | Implementados; pendientes de escucha en Vita | MP3 por streaming, WAV PCM16, mezcla estéreo 44,1 kHz, hilo prioritario y dos buffers; prueba de 300 segundos con A→B, tres bucles y cinco efectos |
 | Controles adaptados | Implementados; pendientes de recorrido en Vita | Corregidos códigos PS en mayúsculas y liberación de sticks; gatillos y páginas separados con SELECT; guía gráfica incluida |
-| Icono y portada LiveArea | Formato corregido en 00.04; instalación pendiente | PNG indexados opacos de 8 bits, paleta de 256 colores; icono de RT_ICON del EXE y portada del atlas del APK |
-| Rendimiento jugable | Pendiente | Primero alcanzar 30 FPS estables en menú/tablero (≤33,3 ms); después evaluar 60 FPS (≤16,7 ms) |
+| Icono y portada LiveArea | Formato corregido en 00.04; usuario reporta ejecución tras la entrega | PNG indexados opacos de 8 bits, paleta de 256 colores; icono de RT_ICON del EXE y portada del atlas del APK |
+| Rendimiento jugable | Mejora subjetiva confirmada; medición pendiente | Usuario nota mejora considerable tras 00.04; falta CSV y comprobar 30 FPS estables (≤33,3 ms) |
 | Compatibilidad y calidad | Pendiente | Partidas completas, cartas, jefes, otros modos, saves y texto; evitar errores de API y verificar imagen/audio en consola |
 
 ## Qué cambió en 00.03
@@ -53,9 +58,11 @@ ejecuta los binarios Android/Steam del juego.
 
 ## Próxima prueba en OLED
 
-Instalar 00.04 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
+Instalar 00.05 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
 el mismo recorrido con balanced y single. Para cada prueba conservar:
-`performance.csv`, `runtime.log` y `audio.log`. Confirmar FPS de menú/tablero,
+los archivos de cada sesión en `ux0:data/shotgunk2vita/logs/`, incluido
+`crash-trace.log`, y cualquier `.psp2dmp` reciente en `ux0:data/`.
+[Instrucciones para recuperar logs](CRASH_LOGS.md). Confirmar FPS de menú/tablero,
 continuidad de música, efectos al navegar/disparar, controles y LiveArea.
 
 Si domina Lua, perfilar funciones y asignaciones antes de decidir la migración

@@ -1,6 +1,7 @@
 #include "render_pool.h"
 #include "graphics.h"
 #include "perf.h"
+#include "diagnostics.h"
 #include <string.h>
 #ifdef SG_VITA
 #include <psp2/kernel/threadmgr.h>
@@ -37,7 +38,9 @@ static int entry(SceSize size, void *arg) {
     for(;;){
         if(sceKernelWaitSema(w->ready,1,NULL)<0)break;
         if(w->quit)break;
+        sg_diag_worker((unsigned)(w-jobs)+1,1);
         uint64_t start=sg_now_us();sg_present_rows(w->pixels,w->width,w->height,w->first,w->last);w->time_us=sg_now_us()-start;
+        sg_diag_worker((unsigned)(w-jobs)+1,0);
         sceKernelSignalSema(w->done,1);
     }
     return 0;
@@ -48,7 +51,9 @@ static void *entry(void *arg){
     Worker *w=arg;
     w->cpu=-1;
     for(;;){wait_sem(&w->ready);if(w->quit)break;
+        sg_diag_worker((unsigned)(w-jobs)+1,1);
         uint64_t start=sg_now_us();sg_present_rows(w->pixels,w->width,w->height,w->first,w->last);w->time_us=sg_now_us()-start;
+        sg_diag_worker((unsigned)(w-jobs)+1,0);
         sem_post(&w->done);
     }
     return NULL;
@@ -89,7 +94,9 @@ void sg_render_pool_present(uint32_t *pixels,int width,int height){
         sem_post(&w->ready);
 #endif
     }
+    sg_diag_worker(0,1);
     uint64_t start=sg_now_us();sg_present_rows(pixels,width,height,0,height/total);last_stats.worker_us[0]=sg_now_us()-start;
+    sg_diag_worker(0,0);
 #ifdef SG_VITA
     last_stats.cpu[0]=sceKernelGetCpuId();
 #else

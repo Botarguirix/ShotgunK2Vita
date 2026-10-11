@@ -1,16 +1,20 @@
-# Herramienta de rendimiento · versión 00.03
+# Herramienta de rendimiento · versión 00.05
 
-El VPK escribe `ux0:data/shotgunk2vita/performance.csv`. El HUD muestra FPS y
+Desde 00.05, el CSV se guarda en cada sesión:
+`ux0:data/shotgunk2vita/logs/00.05-<identificador>-<n>/performance.csv`.
+Usar ese archivo para los informes; [recuperación de logs](CRASH_LOGS.md).
+El HUD muestra FPS y
 milisegundos de lógica (U), dibujo (D) y presentación (P). SELECT+TRIÁNGULO
 lo oculta o muestra. `W` indica cuántos participantes tiene la presentación;
 no es un porcentaje de utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.03 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.05 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
-3. Salir con START+SELECT y copiar `performance.csv`, `runtime.log` y
-   `audio.log` antes de volver a abrir el juego: los registros se reemplazan.
+3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
+   Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
+   las ejecuciones anteriores se conservan al abrir de nuevo.
 4. En Windows, abrir `PerformanceTool.cmd` y seleccionar el CSV. Requiere
    Python 3; encuentra primero el Python instalado por Codex y luego `python`.
    El informe HTML funciona sin conexión y permite ocultar etapas del gráfico.
@@ -44,7 +48,7 @@ Copiar el archivo a `ux0:data/shotgunk2vita/performance.cfg` y reiniciar el jueg
 
 Sin archivo se usa balanced. Los únicos valores aceptados de `cpu_mhz` son
 333 y 444; `workers` acepta 1–3. `hud=0` oculta el HUD y `profile=0` desactiva
-el CSV para una prueba sin registro. El reloj previo se restaura al salir por
+el CSV; los logs de diagnóstico siguen activos en 00.05. El reloj previo se restaura al salir por
 START+SELECT. El log informa si Vita rechazó una frecuencia o un hilo.
 
 La aplicación usa los tres núcleos disponibles para aplicaciones:

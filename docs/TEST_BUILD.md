@@ -1,8 +1,8 @@
-# VPK experimental 00.04
+# VPK experimental 00.05
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.04/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.05/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -10,10 +10,12 @@ La versión 00.04 corrige el formato de estos PNG: índice de 8 bits, paleta
 de 256 colores y sin transparencia. El error 0x8010113D comunicado por el
 usuario coincide con el formato RGBA incompatible encontrado en 00.03.
 Las dimensiones, CRC, paleta, XML y SFO se comprueban antes de entregar el VPK.
-Esta corrección todavía necesita confirmar instalación en la consola.
+El usuario informa mejora considerable de FPS después de esa entrega,
+pero un crasheo. La versión 00.05 registra diagnósticos persistentes para
+localizar la causa; todavía no se considera corregido el crasheo.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`; la compilación nueva está en `build-iterations/00.04/`.
+`00.03/` y `00.04/`; la compilación nueva está en `build-iterations/00.05/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -59,11 +61,14 @@ pendientes. Las partidas antiguas codificadas no se importan.
 
 ## Qué enviar después de probar
 
-Salir con START+SELECT y conservar estos archivos antes de abrir otra vez:
+Después de reproducir el fallo, copiar toda la carpeta:
 
-- `ux0:data/shotgunk2vita/performance.csv`
-- `ux0:data/shotgunk2vita/runtime.log`
-- `ux0:data/shotgunk2vita/audio.log`
+- `ux0:data/shotgunk2vita/logs/`
+- El `.psp2dmp` reciente en `ux0:data/`, si Vita lo genera.
+
+Las sesiones ya no se sobrescriben al volver a abrir el juego. Dentro de cada
+una están `runtime.log`, `audio.log`, `performance.csv` y `crash-trace.log`.
+[Guía de recuperación y ZIP de diagnóstico](CRASH_LOGS.md).
 
 Informar FPS en título/menú/tablero, si se oye música y efectos, y si los
 controles responden. Si hay cierre o pantalla de error, conservar también

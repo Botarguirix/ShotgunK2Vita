@@ -1,6 +1,7 @@
 #include "graphics.h"
 #include "lauxlib.h"
 #include "perf.h"
+#include "diagnostics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,7 @@ typedef struct {char key[96];int w,h;unsigned char *p;} Surface;
 static Surface surfaces[MAX_SURFACES];static int count, dst, sheet, gridw=16,gridh=16,camx,camy,ink=4;
 static uint32_t colors[256];static unsigned char mapping[256],displaymap[256],transparent[256];static char data_root[1024];
 static size_t allocated;
+unsigned sg_graphics_memory_kb(void){return (unsigned)(allocated/1024);}
 static int clipx,clipy,clipw=4096,cliph=4096,pattern,pattern_transparent;
 static unsigned short sprite_pattern[256],sprite_pair[256];
 static unsigned char blend_table[256][256];
@@ -42,6 +44,7 @@ static int load(lua_State *L,const char *filename,const char *key,int use_palett
  while(!strncmp(filename,"../",3))filename+=3;
  if(filename[0]=='/'||strchr(filename,':')||strstr(filename,".."))return luaL_error(L,"Invalid image path");
  char path[2048];snprintf(path,sizeof(path),"%s/%s",data_root,filename);char *ext=strrchr(path,'.');if(ext)strcpy(ext,".sgimg");
+ sg_diag_event("image_load",path);
  FILE *f=fopen(path,"rb");if(!f)return luaL_error(L,"Missing prepared image: %s",path);
  unsigned char header[12],pal[1024];if(fread(header,1,12,f)!=12||memcmp(header,"SGI1",4)||fread(pal,1,1024,f)!=1024){fclose(f);return luaL_error(L,"Invalid SGI image");}
  unsigned w=header[4]|header[5]<<8|header[6]<<16|header[7]<<24,h=header[8]|header[9]<<8|header[10]<<16|header[11]<<24;

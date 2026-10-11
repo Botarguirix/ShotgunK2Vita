@@ -2,6 +2,7 @@
 #include "graphics.h"
 #include "perf.h"
 #include "audio.h"
+#include "diagnostics.h"
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
@@ -32,7 +33,7 @@ static int btnv(lua_State *L){lua_pushnumber(L,input_value(luaL_checkstring(L,1)
 static int controls(lua_State *L){if(lua_gettop(L)){const char *s=luaL_checkstring(L,1);snprintf(control_string,sizeof(control_string),"%s",s);char copy[8192];snprintf(copy,sizeof(copy),"%s",s);char *line=copy;while(*line){char *end=strchr(line,'\n');if(end)*end=0;char *sep=strchr(line,'>');if(sep){*sep=0;while(*line==' '||*line=='\t'||*line=='\r')line++;size_t n=strlen(line);while(n&&(line[n-1]==' '||line[n-1]=='\r'||line[n-1]=='\t'))line[--n]=0;bind(line,sep+1);}if(!end)break;line=end+1;}}lua_pushstring(L,control_string);return 1;}
 static int mouse(lua_State *L){if(!lua_gettop(L)){lua_pushinteger(L,mx);lua_pushinteger(L,my);return 2;}const char *op=luaL_checkstring(L,1);if(!strcmp(op,"show"))return 0;if(!strcmp(op,"pos")){lua_pushinteger(L,mx);lua_pushinteger(L,my);return 2;}return luaL_error(L,"Unsupported mouse operation %s",op);}
 static void limit(lua_State *L, lua_Debug *ar) {
-    (void)ar;
+    if(lua_getinfo(L,"Sl",ar))sg_diag_location(ar->short_src,ar->currentline);
     if(++instructions>2000) luaL_error(L,"Instruction limit exceeded during bootstrap");
 }
 static void logline(const char *text) { if(output){fprintf(output,"%s\n",text);fflush(output);} }
@@ -48,8 +49,9 @@ static int require_file(lua_State *L) {
     lua_getfield(L,-1,path);
     if(!lua_isnil(L,-1))return 1;
     lua_pop(L,1);
-    if(luaL_loadfile(L,path))return lua_error(L);
     logline(path);
+    sg_diag_event("require",path);
+    if(luaL_loadfile(L,path))return lua_error(L);
     lua_call(L,0,1);
     if(lua_isnil(L,-1)){lua_pop(L,1);lua_pushboolean(L,1);}
     lua_pushvalue(L,-1);lua_setfield(L,-3,path);
@@ -109,7 +111,25 @@ static int remove_save(lua_State *L){const char *name=luaL_checkstring(L,1);if(s
 static int lib_callbacks(lua_State *L,const char *name){lua_getglobal(L,name);if(lua_istable(L,-1)){lua_pushnil(L);while(lua_next(L,-2)){lua_pushvalue(L,-1);lua_call(L,0,0);lua_pop(L,1);}}lua_pop(L,1);return 0;}
 static int shallow_copy(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_newtable(L);lua_pushnil(L);while(lua_next(L,1)){lua_pushvalue(L,-2);lua_pushvalue(L,-2);lua_settable(L,2);lua_pop(L,1);}return 1;}
 static int init_libs(lua_State *L){return lib_callbacks(L,"_lib_init");}
-static int frame_call(lua_State *L){uint64_t start=sg_now_us();lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;start=sg_now_us();lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;return 0;}
+static int frame_call(lua_State *L){sg_diag_phase(SG_DIAG_UPDATE);uint64_t start=sg_now_us();lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;sg_diag_phase(SG_DIAG_DRAW);start=sg_now_us();lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;return 0;}
+static int traceback(lua_State *L){
+    char message[8192];const char *error=lua_tostring(L,1);
+    size_t used=(size_t)snprintf(message,sizeof(message),"%s\nstack traceback:",error?error:"Non-string Lua error");
+    for(int level=1;level<=32&&used<sizeof(message)-1;level++){
+        lua_Debug ar;if(!lua_getstack(L,level,&ar))break;
+        if(lua_getinfo(L,"nSl",&ar)){
+            int n=snprintf(message+used,sizeof(message)-used,"\n  %s:%d in %s",ar.short_src,ar.currentline,ar.name?ar.name:ar.what);
+            if(n<0)break;if((size_t)n>=sizeof(message)-used){used=sizeof(message)-1;break;}used+=(size_t)n;
+        }
+    }
+    sg_diag_phase(SG_DIAG_ERROR);sg_diag_event("lua_error",error?error:"Non-string Lua error");
+    logline(message);lua_pushstring(L,message);return 1;
+}
+static int protected_call(lua_State *L,int arguments,int results){
+    int index=lua_gettop(L)-arguments;lua_pushcfunction(L,traceback);lua_insert(L,index);
+    int status=lua_pcall(L,arguments,results,index);lua_remove(L,index);return status;
+}
+static int panic_log(lua_State *L){const char *error=lua_tostring(L,-1);logline(error?error:"Lua panic (non-string error)");sg_diag_event("lua_panic",error);return 0;}
 static int graphics_start(lua_State *L){sg_graphics_init(L,rootpath);return 0;}
 static int list(lua_State *L){char path[2048];resolve(luaL_optstring(L,1,""),path,sizeof(path));DIR *d=opendir(path);lua_newtable(L);if(d){struct dirent *e;int i=1;while((e=readdir(d))){if(e->d_name[0]=='.')continue;lua_pushstring(L,e->d_name);lua_rawseti(L,-2,i++);}closedir(d);}return 1;}
 static int gameplay(lua_State *L){lua_getglobal(L,"require");lua_pushvalue(L,1);lua_call(L,1,1);return 1;}
@@ -119,6 +139,7 @@ static void alias(const char *name,const char *table,const char *field){lua_getg
 int sg_boot(const char *root,FILE *log) {
     output=log;failure[0]=0;instructions=0;snprintf(rootpath,sizeof(rootpath),"%s",root);
     state=luaL_newstate();if(!state){snprintf(failure,sizeof(failure),"Lua allocation failed");return 0;}
+    lua_atpanic(state,panic_log);
     luaL_openlibs(state);
     lua_pushnil(state);lua_setglobal(state,"io");lua_pushnil(state);lua_setglobal(state,"os");
     lua_pushnil(state);lua_setglobal(state,"debug");lua_pushnil(state);lua_setglobal(state,"dofile");
@@ -157,20 +178,22 @@ int sg_boot(const char *root,FILE *log) {
     const char *apis[]={"bprint","newfnt","font","strwidth","pal","newwin","camera","tcamera","rumble","newsrf","palette","sfx","newmus","newsfx","target","spritesheet","sspr","spr","rectfill","line","btn","btnp","btnv","controls","winspec","fpslimit","shdrf","newbnk","delbnk",NULL};
     for(int i=0;apis[i];i++){lua_pushstring(state,apis[i]);lua_pushcclosure(state,missing,1);lua_setglobal(state,apis[i]);}
     lua_pushcfunction(state,graphics_start);
-    if(lua_pcall(state,0,0,0)){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
+    if(protected_call(state,0,0)){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     reg("controls",controls);reg("btn",btn);reg("btnp",btnp);reg("btnr",btnr);reg("btnv",btnv);reg("mouse",mouse);
     reg("rumble",muted_audio);
     sg_audio_init(state,rootpath,output);sg_audio_start(output);
     lua_sethook(state,limit,LUA_MASKCOUNT,10000);
     char path[2048];resolve("code.lua",path,sizeof(path));
     logline("ShotgunK2Vita Lua 5.1 bootstrap; unsupported APIs stop execution");
-    int status=luaL_loadfile(state,path);if(!status)status=lua_pcall(state,0,0,0);
-    if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=lua_pcall(state,0,0,0);}
-    if(!status){lua_pushcfunction(state,init_libs);status=lua_pcall(state,0,0,0);}
+    sg_diag_event("load",path);
+    int status=luaL_loadfile(state,path);if(!status)status=protected_call(state,0,0);
+    if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=protected_call(state,0,0);}
+    if(!status){lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     logline("_init completed");return 1;
 }
 const char *sg_error(void){return failure;}
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
-int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;sg_perf_begin();lua_pushcfunction(state,frame_call);if(lua_pcall(state,0,0,0)){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}return 1;}
+int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
+unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}
 void sg_close(void){sg_audio_close();if(state)lua_close(state);state=NULL;sg_graphics_close();}
