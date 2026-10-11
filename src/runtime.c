@@ -19,16 +19,56 @@ static FILE *output;
 static char rootpath[1024], failure[1024];
 static unsigned instructions;
 static double frame_time;
-typedef struct{char id[80],tokens[512];} Binding;
+typedef struct{char id[80],tokens[512];unsigned mask,axis_dirs;int touch;uint64_t epoch;double values[3];} Binding;
+static uint64_t input_epoch=1;static int quit_requested;
+static Binding raw_bindings[32];static unsigned raw_next;
+static void compile_binding(Binding *b);
 static Binding bindings[128];static int binding_count;
 static unsigned buttons_now,buttons_prev;static int axes[4],axes_prev[4],touched,touch_prev,mx,my;
 static char control_string[8192];
-static void bind(const char *id,const char *tokens){int i;for(i=0;i<binding_count;i++)if(!strcmp(bindings[i].id,id))break;if(i==binding_count){if(i==128)return;binding_count++;}snprintf(bindings[i].id,80,"%s",id);snprintf(bindings[i].tokens,512,"%s",tokens);}
+static void bind(const char *id,const char *tokens){int i;for(i=0;i<binding_count;i++)if(!strcmp(bindings[i].id,id))break;if(i==binding_count){if(i==128)return;binding_count++;}snprintf(bindings[i].id,80,"%s",id);snprintf(bindings[i].tokens,512,"%s",tokens);compile_binding(&bindings[i]);}
 static unsigned token_bit(const char *token){if(strstr(token,"cross")||!strcmp(token,"c:a"))return SG_CROSS;if(strstr(token,"circle")||!strcmp(token,"c:b"))return SG_CIRCLE;if(strstr(token,"square")||!strcmp(token,"c:x"))return SG_SQUARE;if(strstr(token,"triangle")||!strcmp(token,"c:y"))return SG_TRIANGLE;if(strstr(token,"dpad:left"))return SG_LEFT;if(strstr(token,"dpad:right"))return SG_RIGHT;if(strstr(token,"dpad:up"))return SG_UP;if(strstr(token,"dpad:down"))return SG_DOWN;if(strstr(token,"lshoulder")||strstr(token,"l1"))return SG_LPAGE;if(strstr(token,"ltrigger")||strstr(token,"l2"))return SG_L;if(strstr(token,"rshoulder")||strstr(token,"r1"))return SG_RPAGE;if(strstr(token,"rtrigger")||strstr(token,"r2"))return SG_R;if(strstr(token,"lstickb")||strstr(token,"l3"))return SG_LSTICK;if(strstr(token,"rstickb")||strstr(token,"r3"))return SG_RSTICK;if(strstr(token,"start")||strstr(token,"options"))return SG_START;if(strstr(token,"back")||strstr(token,"touchpad"))return SG_SELECT;return 0;}
-static double input_value(const char *id,int edge){const char *tokens=id;for(int i=0;i<binding_count;i++)if(!strcmp(id,bindings[i].id)){tokens=bindings[i].tokens;break;}char copy[512];snprintf(copy,sizeof(copy),"%s",tokens);double value=0;char *token=strtok(copy,",");while(token){while(*token==' '||*token=='\t')token++;size_t n=strlen(token);while(n&&token[n-1]==' ')token[--n]=0;for(char *p=token;*p;p++)*p=(char)tolower((unsigned char)*p);unsigned mask=token_bit(token);double v=mask?((buttons_now&mask)&&(!edge||!(buttons_prev&mask))):0;if(!strcmp(token,"m:left")||!strcmp(token,"m:lb")||!strcmp(token,"touch"))v=touched&&(!edge||!touch_prev);if(strstr(token,"stick:")){int right=strstr(token,"rstick")!=NULL;int horizontal=strstr(token,"left")||strstr(token,"right");int a=axes[(right?2:0)+(horizontal?0:1)]-128;int sign=strstr(token,"left")||strstr(token,"up")?-1:1;v=a*sign>24?(a*sign-24)/103.0:0;if(edge&&(axes_prev[(right?2:0)+(horizontal?0:1)]-128)*sign>24)v=0;}if(v>value)value=v;token=strtok(NULL,",");}return value;}
+static void compile_binding(Binding *b){
+ b->mask=b->axis_dirs=0;b->touch=0;b->epoch=0;sg_perf.input_parses++;
+ char copy[512];snprintf(copy,sizeof(copy),"%s",b->tokens);char *token=copy;
+ while(token){char *next=strchr(token,',');if(next)*next++=0;
+  while(*token==' '||*token=='\t')token++;
+  size_t n=strlen(token);while(n&&token[n-1]==' ')token[--n]=0;
+  for(char *p=token;*p;p++)*p=(char)tolower((unsigned char)*p);
+  if(strstr(token,"stick:")){
+   int right=strstr(token,"rstick")!=NULL,horizontal=strstr(token,"left")||strstr(token,"right");
+   int axis=(right?2:0)+(horizontal?0:1),negative=strstr(token,"left")||strstr(token,"up");
+   b->axis_dirs|=1u<<(axis*2+negative);
+  }else if(!strcmp(token,"m:left")||!strcmp(token,"m:lb")||!strcmp(token,"touch"))b->touch=1;
+  else b->mask|=token_bit(token);
+  token=next;
+ }
+}
+static double evaluate_binding(const Binding *b,int kind){
+ unsigned buttons=kind==2?buttons_prev:buttons_now;
+ double value=(buttons&b->mask&(kind==1?~buttons_prev:~0u))!=0;
+ if(b->touch&&(kind==2?touch_prev:touched)&&(kind!=1||!touch_prev))value=1;
+ for(int axis=0;axis<4;axis++)for(int negative=0;negative<2;negative++)if(b->axis_dirs&(1u<<(axis*2+negative))){
+  int sign=negative?-1:1,a=((kind==2?axes_prev[axis]:axes[axis])-128)*sign;
+  if(a>24&&(kind!=1||(axes_prev[axis]-128)*sign<=24)){double v=(a-24)/103.0;if(v>value)value=v;}
+ }
+ return value;
+}
+static double input_value(const char *id,int kind){
+ sg_perf.input_calls++;Binding *b=NULL;Binding temporary;
+ for(int i=0;i<binding_count;i++)if(!strcmp(id,bindings[i].id)){b=&bindings[i];break;}
+ if(!b){
+  if(strlen(id)<sizeof(raw_bindings[0].id)){
+   for(int i=0;i<32;i++)if(raw_bindings[i].id[0]&&!strcmp(id,raw_bindings[i].id)){b=&raw_bindings[i];break;}
+   if(!b){b=&raw_bindings[raw_next++%32];snprintf(b->id,sizeof(b->id),"%s",id);snprintf(b->tokens,sizeof(b->tokens),"%s",id);compile_binding(b);}
+  }else{b=&temporary;snprintf(b->tokens,sizeof(b->tokens),"%s",id);compile_binding(b);}
+ }
+ if(b->epoch!=input_epoch){for(int i=0;i<3;i++)b->values[i]=evaluate_binding(b,i);b->epoch=input_epoch;sg_perf.input_evaluations++;}
+ return b->values[kind];
+}
 static int btn(lua_State *L){lua_pushboolean(L,input_value(luaL_checkstring(L,1),0)>0);return 1;}
 static int btnp(lua_State *L){lua_pushboolean(L,input_value(luaL_checkstring(L,1),1)>0);return 1;}
-static int btnr(lua_State *L){const char *id=luaL_checkstring(L,1);double now=input_value(id,0);unsigned current=buttons_now;buttons_now=buttons_prev;int current_touch=touched;touched=touch_prev;int current_axes[4];memcpy(current_axes,axes,sizeof(axes));memcpy(axes,axes_prev,sizeof(axes));double previous=input_value(id,0);buttons_now=current;touched=current_touch;memcpy(axes,current_axes,sizeof(axes));lua_pushboolean(L,previous>0&&now==0);return 1;}
+static int btnr(lua_State *L){const char *id=luaL_checkstring(L,1);double now=input_value(id,0),previous=input_value(id,2);lua_pushboolean(L,previous>0&&now==0);return 1;}
 static int btnv(lua_State *L){lua_pushnumber(L,input_value(luaL_checkstring(L,1),0));return 1;}
 static int controls(lua_State *L){if(lua_gettop(L)){const char *s=luaL_checkstring(L,1);snprintf(control_string,sizeof(control_string),"%s",s);char copy[8192];snprintf(copy,sizeof(copy),"%s",s);char *line=copy;while(*line){char *end=strchr(line,'\n');if(end)*end=0;char *sep=strchr(line,'>');if(sep){*sep=0;while(*line==' '||*line=='\t'||*line=='\r')line++;size_t n=strlen(line);while(n&&(line[n-1]==' '||line[n-1]=='\r'||line[n-1]=='\t'))line[--n]=0;bind(line,sep+1);}if(!end)break;line=end+1;}}lua_pushstring(L,control_string);return 1;}
 static int mouse(lua_State *L){if(!lua_gettop(L)){lua_pushinteger(L,mx);lua_pushinteger(L,my);return 2;}const char *op=luaL_checkstring(L,1);if(!strcmp(op,"show"))return 0;if(!strcmp(op,"pos")){lua_pushinteger(L,mx);lua_pushinteger(L,my);return 2;}return luaL_error(L,"Unsupported mouse operation %s",op);}
@@ -82,6 +122,7 @@ static int all(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_pushvalue(L,1);l
 static int rnd(lua_State *L){if(lua_istable(L,1)){int len=(int)lua_objlen(L,1);if(!len){lua_pushnil(L);return 1;}lua_rawgeti(L,1,1+rand()%len);return 1;}double n=luaL_optnumber(L,1,1);lua_pushnumber(L,(rand()/(RAND_MAX+1.0))*n);return 1;}
 static int irnd(lua_State *L){lua_pushinteger(L,(int)floor((rand()/(RAND_MAX+1.0))*luaL_checknumber(L,1)));return 1;}
 static int mid(lua_State *L){double a=luaL_checknumber(L,1),b=luaL_checknumber(L,2),c=luaL_checknumber(L,3);lua_pushnumber(L,fmax(fmin(a,b),fmin(fmax(a,b),c)));return 1;}
+static int request_quit(lua_State *L){(void)L;quit_requested=1;return 0;}
 static int false_value(lua_State *L){lua_pushboolean(L,0);return 1;}
 static int timestamp(lua_State *L){lua_pushnumber(L,frame_time);return 1;}
 static int platform(lua_State *L){lua_pushstring(L,"VITA");return 1;}
@@ -170,6 +211,7 @@ static void reg(const char *name,lua_CFunction fn){lua_pushcfunction(state,fn);l
 static void boolean(const char *name,int value){lua_pushboolean(state,value);lua_setglobal(state,name);}
 static void alias(const char *name,const char *table,const char *field){lua_getglobal(state,table);lua_getfield(state,-1,field);lua_setglobal(state,name);lua_pop(state,1);}
 int sg_boot(const char *root,FILE *log) {
+    quit_requested=0;binding_count=0;raw_next=0;input_epoch=1;frame_time=0;buttons_now=buttons_prev=0;touched=touch_prev=0;memset(axes,0,sizeof(axes));memset(axes_prev,0,sizeof(axes_prev));memset(raw_bindings,0,sizeof(raw_bindings));
     output=log;failure[0]=0;instructions=0;snprintf(rootpath,sizeof(rootpath),"%s",root);
     state=luaL_newstate();if(!state){snprintf(failure,sizeof(failure),"Lua allocation failed");return 0;}
     lua_atpanic(state,panic_log);
@@ -196,7 +238,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("round",roundvalue);
     reg("sgn",signvalue);
     reg("rm",remove_save);
-    reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
+    reg("quit",request_quit);reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
     const char *maths[]={"abs","min","max","sqrt","floor","ceil","sin","cos","tan","atan2","pow","log",NULL};
     for(int i=0;maths[i];i++)if(strcmp(maths[i],"log"))alias(maths[i],"math",maths[i]);
     reg("sin",turn_sin);reg("cos",turn_cos);
@@ -227,6 +269,7 @@ int sg_boot(const char *root,FILE *log) {
     logline("_init completed");return 1;
 }
 const char *sg_error(void){return failure;}
+int sg_should_quit(void){return quit_requested;}
 #ifndef SG_VITA
 /* Host regression harness: absent from the Vita executable. */
 int sg_host_eval(const char *script){
@@ -239,6 +282,6 @@ int sg_host_eval(const char *script){
 }
 #endif
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
-int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
+int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
 unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}
 void sg_close(void){sg_audio_close();if(state)lua_close(state);state=NULL;sg_graphics_close();}

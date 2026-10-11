@@ -26,3 +26,6 @@ python stability_audit.py RUTA_DATOS --output auditoria-nueva.json
 Enumera dependencias SUGAR conocidas y tamaños de imágenes. No prueba todas las
 rutas de juego. SGI1 ya usa un byte por píxel; comprimir reduce almacenamiento,
 no el trabajo de dibujo de cada frame. No redimensionar atlas de sprites.
+
+00.10: consultas/evaluaciones/parseos de entrada en CSV e informe.
+Exit del menú registra menu_exit y cierra por el mismo teardown nativo.

@@ -1,4 +1,4 @@
-# Herramienta de rendimiento · versión 00.09
+# Herramienta de rendimiento · versión 00.10
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
@@ -9,7 +9,7 @@ CSV/logs. Los participantes de presentación no indican utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.09 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.10 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
@@ -93,3 +93,15 @@ No se publica un búfer hasta terminar la copia síncrona. El CSV añade
 `copy_mode` (0 CPU, 1 DMA) y `copy_rc`; `runtime.log` registra `copy_probe`.
 La prueba inicial no sustituye una sesión de hardware: comparar `copy_ms`,
 media/P95 de frame y parpadeo durante menú/tablero con idéntico recorrido.
+
+## Input Cache: métricas 00.10
+
+CSV e informe añaden input_calls (consultas), input_evaluations (valores de
+un binding calculados por frame) e input_parses (compilaciones de binding).
+La caché se invalida al reasignar y en cada frame; acepta botones/sticks/toque,
+flancos y liberación. No confundir estos contadores con porcentaje de CPU.
+Comparar update_ms y frame_ms en recorridos iguales con reloj y workers iguales.
+El ensayo sintético PC de 1000 frames/602000 consultas pasó en 00.09 y 00.10:
+2549971 frente a 370225 µs de update total. No predice FPS de consola.
+
+Los rótulos L1/R1 son controles táctiles, no un HUD de rendimiento.

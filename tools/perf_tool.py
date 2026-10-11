@@ -46,6 +46,7 @@ def summary(rows):
         'frame_mean_ms': statistics.mean(frames), 'frame_p95_ms': frames[math.ceil(.95*len(frames))-1],
         'stages_ms': {k: statistics.mean(r[k] for r in rows) for k in STAGES},
         'copy_mean_ms': statistics.mean(r.get('copy_ms', 0) for r in rows),
+        'input_counts': {k: sum(r.get(k,0) for r in rows) for k in ('input_calls','input_evaluations','input_parses')} if any('input_calls' in r for r in rows) else {},
         'copy_modes': sorted(set(int(r['copy_mode']) for r in rows if 'copy_mode' in r)),
         'copy_status_codes': sorted(set(int(r['copy_rc']) for r in rows if 'copy_rc' in r)),
         'glyph_misses': sum(r.get('glyph_misses', 0) for r in rows),
@@ -60,6 +61,8 @@ def report(args):
     name = html.escape(args.csv.name)
     table = ''.join(f'<tr><td>{html.escape(k)}</td><td>{v:.3f} ms</td></tr>' for k, v in stats['stages_ms'].items())
     table += f'<tr><td>Copia RAM → pantalla (00.08+)</td><td>{stats["copy_mean_ms"]:.3f} ms</td></tr>'
+    if stats['input_counts']:
+        table += '<tr><td>Entrada: consultas / evaluaciones / parseos</td><td>'+ ' / '.join(str(int(stats['input_counts'][k])) for k in ('input_calls','input_evaluations','input_parses')) + '</td></tr>'
     if stats['copy_modes']:
         backends = ', '.join('DMA' if m else 'CPU' for m in stats['copy_modes'])
         table += f'<tr><td>Backend de copia</td><td>{backends}; rc={stats["copy_status_codes"]}</td></tr>'

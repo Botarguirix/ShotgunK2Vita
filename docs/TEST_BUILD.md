@@ -1,8 +1,8 @@
-# Iteración 09 — Frame Transfer (00.09)
+# Iteración 10 — Input Cache (00.10)
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.09/ShotgunK2Vita-iteration09-frame-transfer.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.10/ShotgunK2Vita-iteration10-input-cache.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -20,7 +20,7 @@ fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.09/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.10/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -100,3 +100,19 @@ El registro `copy_probe` identifica integridad y backend elegido. `copy_mode=2`
 es automático; 0 fuerza CPU, 1 solicita DMA (con fallback si falla). Comparar
 copy-cpu/copy-dma en el mismo recorrido, observando parpadeo y `copy_ms`.
 No se ha comprobado todavía esta transferencia en una consola física.
+
+## Prueba de 00.10
+
+Conservar datos y save/. Comparar el mismo recorrido de título/menú/tablero
+con el plugin de FPS, manteniendo reloj/perfil igual. Probar ambos sticks,
+cruceta mantenida, R, recarga y combinaciones SELECT. Abrir/cerrar pausa,
+regresar al menú y elegir Exit: debe cerrar sin pantalla de error, dejando
+exit_reason=menu_exit y sesión terminada en los logs. También funciona START+SELECT.
+Recuperar la carpeta completa logs/00.10-* para media/P95 y los nuevos
+input_calls/input_evaluations/input_parses. No forzar DMA en esta prueba:
+00.09 falló integridad en el pase 6 y volvió correctamente a CPU.
+
+L1/R1 táctiles: botones visibles en las esquinas inferiores del panel frontal.
+Mantener equivale a mantener L1/R1; se pueden tocar ambos a la vez. Sus zonas
+consumen el toque antes de pasarlo al tablero. SELECT+L y SELECT+R siguen siendo
+alternativas físicas; L/R solos corresponden a L2/R2. No se añade un contador FPS.

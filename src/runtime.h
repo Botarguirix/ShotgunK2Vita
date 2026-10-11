@@ -2,6 +2,7 @@
 #include <stdio.h>
 int sg_boot(const char *root, FILE *log);
 const char *sg_error(void);
+int sg_should_quit(void);
 void sg_close(void);
 int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y);
 void sg_report_state(void);

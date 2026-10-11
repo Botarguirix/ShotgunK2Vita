@@ -4,16 +4,18 @@ Port experimental de Shotgun King a PS Vita. El runtime propio interpreta los
 scripts Lua del APK con Lua 5.1 y una implementación parcial de la API SUGAR.
 El usuario confirmó el arranque de 00.02 en Vita OLED a 1–3 FPS y sin sonido.
 
-La versión actual **00.09 — Frame Transfer** corrige `ismobile()` al pausar,
-elimina nuestro contador de pantalla y conserva CSV y diagnósticos. Compara
-copia CPU/DMA al arrancar, comprueba integridad y elige la más rápida; mantiene
-el doble framebuffer. El usuario confirma gran mejora de 00.08, pero su sesión
-activa promedia 18 FPS y termina al pausar. El port aún requiere pruebas en Vita.
+La versión actual **00.10 — Input Cache** evita parsear controles en cada
+consulta y reutiliza sus valores durante el frame. L1/R1 tienen botones
+táctiles en las esquinas inferiores. `Exit` solicita el cierre
+limpio del runtime y logs. El HUD propio sigue retirado; métricas internas
+incluyen consultas/evaluaciones/parseos. El usuario confirma que 00.09 funciona
+sin otros fallos; su sesión activa equivale a 18,38 FPS. El efecto de 00.10
+sobre FPS requiere medición en Vita. El port aún necesita cobertura de modos.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
 - [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
-- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION09.md)
-- [Instalación del VPK 00.09](docs/TEST_BUILD.md)
+- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION10.md)
+- [Instalación del VPK 00.10](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
@@ -49,8 +51,8 @@ añade doble framebuffer con composición en RAM y optimiza dibujo de texto.
 Pasan 6000 frames de disparo/recarga en PC; FPS y parpadeo deben verificarse
 en Vita. [Diagnóstico](docs/STATUS_ITERATION08.md) y [auditoría](docs/STABILITY_AUDIT.md).
 
-Salida: `build-iterations/00.09/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.09. Cada versión usa una carpeta de compilación propia.
+Salida: `build-iterations/00.10/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.10. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -73,7 +75,7 @@ python3 tools/package_test.py
 ```
 
 Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.09/`. Incluye ELF/map con símbolos en `debug/`.
+`artifacts/iterations/00.10/`. Incluye ELF/map con símbolos en `debug/`.
 Cada versión ocupa su propia carpeta y el
 empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.

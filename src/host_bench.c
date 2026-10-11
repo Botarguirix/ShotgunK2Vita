@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     if(argc>6&&!sg_diag_start(argv[6]))return 2;
     FILE *csv = fopen(argv[2], "w");
     if (!csv) return 2;
-    fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz\n");
+    fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,input_calls,input_evaluations,input_parses\n");
     uint32_t *pixels = malloc(960*544*sizeof(*pixels));
     int ok = pixels && sg_boot(argv[1], stdout), frames = argc > 3 ? atoi(argv[3]) : 4800;
     int workers=sg_render_pool_start(argc>5?atoi(argv[5]):1,stdout);
@@ -30,10 +30,10 @@ int main(int argc, char **argv) {
         uint64_t present=sg_now_us();
         sg_render_pool_present(pixels,960,544);
         uint64_t end=sg_now_us();
-        fprintf(csv,"%d,%.3f,%.3f,%.3f,0,%.3f,%llu,%llu,%.3f,%llu,%d,0\n",i,
+        fprintf(csv,"%d,%.3f,%.3f,%.3f,0,%.3f,%llu,%llu,%.3f,%llu,%d,0,%llu,%llu,%llu\n",i,
             sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(end-present)/1000.0,(end-begin)/1000.0,
             (unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,
-            sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers);
+            sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses);
     }
     if(ok&&argc>4){FILE *f=fopen(argv[4],"wb");if(f){fprintf(f,"P6\n960 544\n255\n");for(int i=0;i<960*544;i++){unsigned char rgb[3]={pixels[i],pixels[i]>>8,pixels[i]>>16};fwrite(rgb,1,3,f);}fclose(f);}}
     sg_report_state();sg_render_pool_stop(); sg_close(); free(pixels); fclose(csv);

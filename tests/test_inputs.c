@@ -5,6 +5,12 @@
 
 int main(int argc,char **argv){
  int toggle;unsigned bits;
+ assert(sg_touch_shoulder(0,968)==SG_LPAGE);
+ assert(sg_touch_shoulder(179,1087)==SG_LPAGE);
+ assert(sg_touch_shoulder(1740,968)==SG_RPAGE);
+ assert(sg_touch_shoulder(1919,1087)==SG_RPAGE);
+ assert(!sg_touch_shoulder(180,968)&&!sg_touch_shoulder(1739,968));
+ assert(!sg_touch_shoulder(0,967)&&!sg_touch_shoulder(1920,1087));
  bits=sg_controls(SG_R,&toggle);assert(bits==SG_R&&!toggle);
  bits=sg_controls(SG_SELECT|SG_R,&toggle);assert(bits==SG_RPAGE&&!toggle);
  bits=sg_controls(SG_R,&toggle);assert(bits==0); /* Chord release must not fire. */

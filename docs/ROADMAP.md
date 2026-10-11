@@ -1,7 +1,7 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION09.md](INFORME_ROADMAP_ITERACION09.md).
+Informe actual: [INFORME_ROADMAP_ITERACION10.md](INFORME_ROADMAP_ITERACION10.md).
 
 Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
@@ -84,7 +84,7 @@ en RAM, y optimiza máscaras de texto. Pasan 6000 frames de combate en PC
 y la batería ampliada con sanitizadores. La referencia activa de 00.07
 es 19,53 FPS; mejora de FPS y parpadeo de 00.08 pendientes en hardware.
 Persistencia, más cartas/pisos y APIs incompletas impiden declarar el port
-estable. [Informe y criterios](INFORME_ROADMAP_ITERACION09.md).
+estable. [Informe y criterios](INFORME_ROADMAP_ITERACION10.md).
 
 ## Próxima prueba en OLED
 
@@ -131,3 +131,19 @@ La mejora de FPS de 09 y comportamiento DMA requieren prueba física.
 Secuencia nombrada: 10 Input Cache, 11 GPU Presenter, 12 Frame Budget.
 [Investigación de otros ports y aplicación](PORT_OPTIMIZATION_RESEARCH.md).
 [Seguimiento por iteración](ITERATIONS.md).
+
+## Estado actual: Iteración 10 — Input Cache
+
+Usuario: 00.09 sin otros errores de juego; Exit falló por quit() ausente.
+10168 muestras activas: 18,38 FPS derivados, media 54,42 ms y P95 83,41 ms.
+Update 13,29 ms, draw 20,18 ms, present 6,09 ms, copy 5,54 ms y wait 7,10 ms.
+El autotest DMA falla integridad en el pase 6 con rc=0 y elige CPU; conservar
+esa protección. Este recorrido no demuestra por sí solo mejora sobre otra sesión.
+10 elimina parseo repetido, memoiza entradas por frame/reasignación y añade
+quit como solicitud de teardown nativo. La prueba de controles PC conserva
+semántica y reduce el trabajo medido; FPS en Vita pendientes.
+Siguiente 11 GPU Presenter: draw aún domina, estudiar composición/escalado GPU
+con imagen equivalente y sin parpadeo. 12 Frame Budget: perfilar primitivas/Lua,
+media/P95 y sesiones largas. No volver a habilitar un HUD propio.
+
+10 incorpora además L1/R1 táctiles; consumo de sus toques y alternativa SELECT+L/R.
