@@ -238,7 +238,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("round",roundvalue);
     reg("sgn",signvalue);
     reg("rm",remove_save);
-    reg("quit",request_quit);reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
+    reg("fb_ev",muted_audio);reg("quit",request_quit);reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
     const char *maths[]={"abs","min","max","sqrt","floor","ceil","sin","cos","tan","atan2","pow","log",NULL};
     for(int i=0;maths[i];i++)if(strcmp(maths[i],"log"))alias(maths[i],"math",maths[i]);
     reg("sin",turn_sin);reg("cos",turn_cos);

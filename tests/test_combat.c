@@ -31,6 +31,8 @@ int main(int argc,char **argv){
  if(expected){int reproduced=!ok&&strstr(sg_error(),"nil value");printf("OLD_COMBAT_ERROR=%d frame=%d shots=%u\n",reproduced,frame,shots);free(pixels);sg_close();return reproduced?0:1;}
  if(!ok)fprintf(stderr,"%s\n",sg_error());
  sg_report_state();printf("COMBAT_REGRESSION=%s frames=%d pause_inputs=2 R_inputs=%u\n",ok?"passed":"failed",frame,shots);
+ if(ok)ok=sg_host_eval("assert(type(fb_ev)=='function'); local id=ACHIEVEMENTS[1].id; assert(id); DEN.achievements[id]=nil; trig_achievement(id); assert(DEN.achievements[id]==true)");
+ printf("ACHIEVEMENT_REGRESSION=%s\n",ok?"passed":"failed");
  if(ok)ok=sg_host_eval("open_menu({\"quit\"}); act_menu(\"quit\")")&&sg_should_quit();
  printf("MENU_EXIT_REGRESSION=%s\n",ok?"passed":"failed");
  free(pixels);sg_close();return ok&&shots>5?0:1;

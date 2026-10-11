@@ -1,4 +1,4 @@
-# Herramienta de rendimiento · versión 00.10
+# Herramienta de rendimiento · versión 00.11
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
@@ -9,7 +9,7 @@ CSV/logs. Los participantes de presentación no indican utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.10 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.11 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
@@ -105,3 +105,13 @@ El ensayo sintético PC de 1000 frames/602000 consultas pasó en 00.09 y 00.10:
 2549971 frente a 370225 µs de update total. No predice FPS de consola.
 
 Los rótulos L1/R1 son controles táctiles, no un HUD de rendimiento.
+
+## GPU y comparación 00.11
+
+balanced/battery seleccionan renderer=1, escalado GPU. copy-cpu y single
+seleccionan renderer=0 para comparar CPU anterior. workers sólo controla
+la presentación CPU; GPU compone en un participante y escala con GXM.
+No forzar copy-dma: en 00.10 el autotest falló integridad aun con rc=0.
+El CSV identifica renderer y gpu_submit_ms; copy_ms mide subida de textura,
+wait_ms incluye cola GPU/vblank. No interpretar espera como trabajo de Lua.
+Repetir misma escena/relojes, comparar media/P95 y excluir running=0.

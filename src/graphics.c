@@ -266,5 +266,6 @@ void sg_present_rows(uint32_t *p,int width,int height,int first,int last){
  }
 }
 void sg_present(uint32_t *p,int width,int height){sg_present_rows(p,width,height,0,height);}
+uint32_t sg_present_background(void){return colors[displaymap[0]];}
 
 void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++){free_glyphs(&fonts[i]);free(fonts[i].data);}memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}

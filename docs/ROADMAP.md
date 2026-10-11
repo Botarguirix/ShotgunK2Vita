@@ -1,7 +1,7 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION10.md](INFORME_ROADMAP_ITERACION10.md).
+Informe actual: [INFORME_ROADMAP_ITERACION11.md](INFORME_ROADMAP_ITERACION11.md).
 
 Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
@@ -84,7 +84,7 @@ en RAM, y optimiza máscaras de texto. Pasan 6000 frames de combate en PC
 y la batería ampliada con sanitizadores. La referencia activa de 00.07
 es 19,53 FPS; mejora de FPS y parpadeo de 00.08 pendientes en hardware.
 Persistencia, más cartas/pisos y APIs incompletas impiden declarar el port
-estable. [Informe y criterios](INFORME_ROADMAP_ITERACION10.md).
+estable. [Informe y criterios](INFORME_ROADMAP_ITERACION11.md).
 
 ## Próxima prueba en OLED
 
@@ -147,3 +147,18 @@ con imagen equivalente y sin parpadeo. 12 Frame Budget: perfilar primitivas/Lua,
 media/P95 y sesiones largas. No volver a habilitar un HUD propio.
 
 10 incorpora además L1/R1 táctiles; consumo de sus toques y alternativa SELECT+L/R.
+
+## Actualización 00.11 — GPU Presenter
+
+1756 muestras activas: 17,80 FPS derivados, frame medio 56,178 ms y P95
+83,372 ms. Update 9,248; draw 19,984; present 6,249; copy 8,598;
+wait 9,378 ms. CPU observado 500 MHz, tres participantes. Sólo un parseo de
+entrada: la caché funciona. Son recorridos distintos; no inferir regresión
+respecto a la media de 00.09. DMA rc=0 falla integridad: fallback CPU correcto.
+
+Error real: code/achievements.lua:455 llama fb_ev() inexistente después de
+asignar DEN.achievements[id]. No falta el desbloqueo, falta la API de analítica.
+
+GPU de 320×180 implementada; regresiones PC/guardado y compilación Vita válidas.
+Hardware pendiente. Próxima 12 Frame Budget: medir GXM y perfilar dibujo/Lua.
+Detalles: [STATUS_ITERATION11.md](STATUS_ITERATION11.md).

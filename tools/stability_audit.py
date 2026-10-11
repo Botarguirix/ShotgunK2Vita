@@ -16,7 +16,7 @@ file afile encfile ls mkdir isfile isfolder rm desktop_path syslang
 newbnk delbnk bank bnksize bget bset expbnk savbnk band bor bxor bnot shl shr
 lshr rotl rotr newsfx newmus delsfx delmus sfx mus music sfxvol musvol
 sfxlen muslen chnlfx chnlprog nxtmusic shader shdrf shdri shdrsrf
-lockaudio unlockaudio freeze sleep quit ismobile steam psn live url hex'''.split()
+lockaudio unlockaudio freeze sleep fb_ev quit ismobile steam psn live url hex'''.split()
 PARTIAL = {'aspr':'uses the asspr rasterizer; visual fidelity still to verify',
            'asspr':'CPU rotation; fidelity and clipping need broader coverage',
            'circ':'bounded outline; SUGAR subpixel diameter fidelity pending',

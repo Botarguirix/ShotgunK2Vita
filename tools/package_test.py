@@ -37,13 +37,14 @@ for name in ('CMakeLists.txt', 'README.md', 'AGENTS.md', '.gitignore', '.gitattr
 third_party = snapshot/'third_party'
 third_party.mkdir()
 shutil.copytree(root/'third_party/lua-5.1.5/src', third_party/'lua-5.1.5/src')
+shutil.copytree(root/'third_party/libvita2d-core', third_party/'libvita2d-core')
 for name in ('stb_truetype.h', 'dr_mp3.h'):
     shutil.copy2(root/'third_party'/name, third_party/name)
 debug = out/'debug'
 debug.mkdir()
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita', debug/'ShotgunK2Vita.elf')
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita.map', debug/'ShotgunK2Vita.map')
-(out/'performance.cfg').write_text('cpu_mhz=444\nworkers=3\ncopy_mode=2\nprofile=1\n',encoding='ascii')
+(out/'performance.cfg').write_text('cpu_mhz=444\nworkers=3\nrenderer=1\ncopy_mode=2\nprofile=1\n',encoding='ascii')
 package_performance(out/'ShotgunK2Vita-PerformanceTool.zip')
 diagnostic_tool=out/'ShotgunK2Vita-DiagnosticsTool.zip'
 with zipfile.ZipFile(diagnostic_tool,'w',zipfile.ZIP_DEFLATED) as z:

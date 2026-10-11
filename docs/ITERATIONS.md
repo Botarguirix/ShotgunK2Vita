@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION10.md](INFORME_ROADMAP_ITERACION10.md).
+Informe actual: [INFORME_ROADMAP_ITERACION11.md](INFORME_ROADMAP_ITERACION11.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -13,7 +13,8 @@ Informe actual: [INFORME_ROADMAP_ITERACION10.md](INFORME_ROADMAP_ITERACION10.md)
 | 00.07 | `artifacts/iterations/00.07/` | Corregido trifill() ausente con stick derecho; 5.400 frames y sanitizadores en PC; pendiente en Vita |
 | 00.08 | `artifacts/iterations/00.08/` | Disparo aspr y opciones corregidos; doble búfer/RAM y texto optimizado; regresiones PC; Vita pendiente |
 | 00.09 | `artifacts/iterations/00.09/` | Frame Transfer: usuario confirma juego; Exit falla; integridad DMA provoca fallback CPU |
-| 00.10 | `artifacts/iterations/00.10/` | Input Cache: consultas cacheadas, L1/R1 táctiles y cierre por menú |
+| 00.10 | `artifacts/iterations/00.10/` | Input Cache: probado, 17,80 FPS activos; fb_ev corregido en 11 |
+| 00.11 | `artifacts/iterations/00.11/` | GPU Presenter: textura y escala GXM, logro local; hardware pendiente |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
@@ -37,11 +38,26 @@ y referencias de LiveArea. Esto no confirma instalación ni rendimiento en Vita.
 | Iteración | Nombre | Estado / criterio |
 |---|---|---|
 | 09 / 00.09 | Frame Transfer | Probada en Vita: juego confirmado; Exit resuelto en 10; DMA descartado por integridad |
-| 10 / 00.10 | Input Cache | Entrega actual: parseo/cálculo cacheado y Exit; regresión PC, hardware pendiente |
-| 11 / 00.11 | GPU Presenter | Plan: escalado/composición GXM; imagen equivalente y sin parpadeo |
+| 10 / 00.10 | Input Cache | Probada en Vita: caché funciona; fb_ev corregida en 11 |
+| 11 / 00.11 | GPU Presenter | Entrega actual: escalado GXM, logro local; hardware pendiente |
 | 12 / 00.12 | Frame Budget | Plan: perfilar dibujo/Lua, media/P95 y campaña de estabilidad |
 
-09 y 10 tienen entregas independientes. 11–12 son etapas propuestas, adaptables a los
+09 y 10 tienen entregas independientes. 12 es una etapa propuesta, adaptables a los
 logs siguientes. Las carpetas históricas permanecen intactas. CMake contiene
 SG_BUILD_VERSION y SG_BUILD_NAME; el paquete registra iteration.json y nombre
 legible del VPK. No incrementar versión para actualizar resultados solamente.
+
+## Actualización 00.11 — GPU Presenter
+
+1756 muestras activas: 17,80 FPS derivados, frame medio 56,178 ms y P95
+83,372 ms. Update 9,248; draw 19,984; present 6,249; copy 8,598;
+wait 9,378 ms. CPU observado 500 MHz, tres participantes. Sólo un parseo de
+entrada: la caché funciona. Son recorridos distintos; no inferir regresión
+respecto a la media de 00.09. DMA rc=0 falla integridad: fallback CPU correcto.
+
+Error real: code/achievements.lua:455 llama fb_ev() inexistente después de
+asignar DEN.achievements[id]. No falta el desbloqueo, falta la API de analítica.
+
+GPU de 320×180 implementada; regresiones PC/guardado y compilación Vita válidas.
+Hardware pendiente. Próxima 12 Frame Budget: medir GXM y perfilar dibujo/Lua.
+Detalles: [STATUS_ITERATION11.md](STATUS_ITERATION11.md).

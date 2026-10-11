@@ -1,8 +1,8 @@
-# Iteración 10 — Input Cache (00.10)
+# Iteración 11 — GPU Presenter (00.11)
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.10/ShotgunK2Vita-iteration10-input-cache.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.11/ShotgunK2Vita-iteration11-gpu-presenter.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -20,7 +20,7 @@ fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.10/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.11/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -116,3 +116,18 @@ L1/R1 táctiles: botones visibles en las esquinas inferiores del panel frontal.
 Mantener equivale a mantener L1/R1; se pueden tocar ambos a la vez. Sus zonas
 consumen el toque antes de pasarlo al tablero. SELECT+L y SELECT+R siguen siendo
 alternativas físicas; L/R solos corresponden a L2/R2. No se añade un contador FPS.
+
+## Prueba de 00.11
+
+Instalar sobre SGKV00001 sin borrar ux0:data/shotgunk2vita ni save.
+Recorrer título/menú/tablero 60–120 segundos, desbloquear un logro, revisar su
+popup/lista después de reiniciar, probar L1/R1 táctiles, apuntado/disparo,
+pausa/audio y Exit. Comprobar colores/texto, franjas y ausencia de flickering.
+Enviar toda la nueva carpeta logs/00.11-... junto con los relojes del plugin.
+Para comparar CPU, usar preset copy-cpu (renderer=0); repetir misma partida,
+mismos relojes y escena. balanced restaura GPU. No forzar DMA corrupta.
+
+Objetivo siguiente: acercar P95 a 33,3 ms para 30 FPS estables en juego;
+60 necesita 16,7 ms. Sólo lógica+dibujo de esta sesión suman ~29,23 ms:
+60 exige optimizar esas fases, además de la transferencia. 12 Frame Budget
+perfilará las rutas dominantes después de recibir la medición GPU.
