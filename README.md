@@ -10,7 +10,7 @@ independiente, controles adaptados y un medidor de rendimiento. Falta verificar
 sus FPS, audio y estabilidad en hardware Vita.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
-- [Instalación del VPK 00.06](docs/TEST_BUILD.md)
+- [Instalación del VPK 00.07](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
@@ -37,8 +37,12 @@ El log recibido identifica una llamada a `delta()` no registrada en la
 repetición del pad. **00.06** añade ese alias de `dt()`; reproduce el error
 anterior y verifica direcciones mantenidas de cruceta/stick en PC.
 
-Salida: `build-iterations/00.06/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.06. Cada versión usa una carpeta de compilación propia.
+**00.07** implementa `trifill()` y `tri()` para corregir la parada al usar
+el stick derecho. El recorrido de 5.400 frames pasa en PC con sanitizadores;
+la validación en Vita sigue pendiente. [Diagnóstico y pruebas](docs/STATUS_ITERATION07.md).
+
+Salida: `build-iterations/00.07/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.07. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -61,7 +65,7 @@ python3 tools/package_test.py
 ```
 
 Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.06/`. Incluye ELF/map con símbolos en `debug/`.
+`artifacts/iterations/00.07/`. Incluye ELF/map con símbolos en `debug/`.
 Cada versión ocupa su propia carpeta y el
 empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.

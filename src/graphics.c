@@ -75,6 +75,62 @@ static int rectfill(lua_State *L){
  return 0;
 }
 static int line(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);int dx=abs(x2-x),sx=x<x2?1:-1,dy=-abs(y2-y),sy=y<y2?1:-1,err=dx+dy;while(1){dot(x,y,c);if(x==x2&&y==y2)break;int e=err*2;if(e>=dy){err+=dy;x+=sx;}if(e<=dx){err+=dx;y+=sy;}}return 0;}
+/* Triangle coordinates are transformed before conversion to integer pixels.
+ * Clip to the destination first, so far-offscreen vertices never create huge
+ * loops or overflow the line rasterizer. Coverage includes integer edge pixels. */
+static void triangle_pixel(int x,int y,int c){
+ int alt=(pattern>>((y&3)*4+(x&3)))&1;if(alt&&pattern_transparent)return;
+ Surface *s=&surfaces[dst];unsigned char *p=s->p+(size_t)y*s->w+x;
+ *p=blend_table[mapping[(alt?c>>8:c)&255]][*p];
+}
+static void triangle_segment(double ax,double ay,double bx,double by,int c,int left,int top,int right,int bottom){
+ double dx=bx-ax,dy=by-ay,lo=0,hi=1;
+ double p[4]={-dx,dx,-dy,dy},q[4]={ax-left,right-ax,ay-top,bottom-ay};
+ for(int i=0;i<4;i++){
+  if(p[i]==0){if(q[i]<0)return;continue;}
+  double t=q[i]/p[i];if(p[i]<0){if(t>lo)lo=t;}else if(t<hi)hi=t;
+  if(lo>hi)return;
+ }
+ int x=(int)fmax(left,fmin(right,floor(ax+lo*dx+.5))),y=(int)fmax(top,fmin(bottom,floor(ay+lo*dy+.5)));
+ int x2=(int)fmax(left,fmin(right,floor(ax+hi*dx+.5))),y2=(int)fmax(top,fmin(bottom,floor(ay+hi*dy+.5)));
+ int ix=abs(x2-x),sx=x<x2?1:-1,iy=-abs(y2-y),sy=y<y2?1:-1,err=ix+iy;
+ for(;;){triangle_pixel(x,y,c);if(x==x2&&y==y2)break;int twice=err*2;if(twice>=iy){err+=iy;x+=sx;}if(twice<=ix){err+=ix;y+=sy;}}
+}
+static int triangle(lua_State *L,int filled){
+ double x[3],y[3];
+ for(int i=0;i<3;i++){
+  double a=luaL_checknumber(L,1+i*2),b=luaL_checknumber(L,2+i*2);
+  if(!isfinite(a)||!isfinite(b)||fabs(a)>1e9||fabs(b)>1e9)return luaL_error(L,"Invalid triangle coordinates");
+  x[i]=a-camx;y[i]=b-camy;
+ }
+ int c=luaL_optint(L,7,ink);Surface *s=&surfaces[dst];
+ int left=clipx>0?clipx:0,top=clipy>0?clipy:0;
+ int right=(int)fmin(s->w-1,(double)clipx+clipw-1),bottom=(int)fmin(s->h-1,(double)clipy+cliph-1);
+ if(left>right||top>bottom)return 0;
+ double area=(x[1]-x[0])*(y[2]-y[0])-(y[1]-y[0])*(x[2]-x[0]);
+ if(!filled){for(int i=0;i<3;i++)triangle_segment(x[i],y[i],x[(i+1)%3],y[(i+1)%3],c,left,top,right,bottom);return 0;}
+ if(area==0){
+  int a=0,b=0;double longest=-1;
+  for(int i=0;i<3;i++)for(int j=i+1;j<3;j++){double dx=x[j]-x[i],dy=y[j]-y[i],length=dx*dx+dy*dy;if(length>longest){longest=length;a=i;b=j;}}
+  triangle_segment(x[a],y[a],x[b],y[b],c,left,top,right,bottom);return 0;
+ }
+ double first=fmax(top,ceil(fmin(y[0],fmin(y[1],y[2])))),last=fmin(bottom,floor(fmax(y[0],fmax(y[1],y[2]))));
+ if(first>last)return 0;
+ for(int row=(int)first;row<=(int)last;row++){
+  double low=1e30,high=-1e30;
+  for(int i=0;i<3;i++){
+   int j=(i+1)%3;if(row<fmin(y[i],y[j])||row>fmax(y[i],y[j]))continue;
+   if(y[i]==y[j]){low=fmin(low,fmin(x[i],x[j]));high=fmax(high,fmax(x[i],x[j]));}
+   else{double at=x[i]+(x[j]-x[i])*(row-y[i])/(y[j]-y[i]);low=fmin(low,at);high=fmax(high,at);}
+  }
+  double start=fmax(left,ceil(low-1e-9)),end=fmin(right,floor(high+1e-9));if(start>end)continue;
+  if(!pattern&&blend_identity)memset(s->p+(size_t)row*s->w+(int)start,mapping[c&255],(size_t)(end-start+1));
+  else for(int column=(int)start;column<=(int)end;column++)triangle_pixel(column,row,c);
+ }
+ return 0;
+}
+static int trifill(lua_State *L){return triangle(L,1);}
+static int tri(lua_State *L){return triangle(L,0);}
 static int circle(lua_State *L){double x=luaL_checknumber(L,1),y=luaL_checknumber(L,2),r=luaL_checknumber(L,3);int c=luaL_optint(L,4,ink);for(int yy=(int)(y-r);yy<=y+r;yy++)for(int xx=(int)(x-r);xx<=x+r;xx++)if((xx-x)*(xx-x)+(yy-y)*(yy-y)<=r*r)dot(xx,yy,c);return 0;}
 static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,int fy){
  Surface *s=&surfaces[sheet],*d=&surfaces[dst];
@@ -149,6 +205,7 @@ void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(d
  reg(L,"clip",clip);reg(L,"delsrf",delsrf);reg(L,"fillp",fillp);reg(L,"rect",rect);reg(L,"pset",pset);reg(L,"exe",exe);
  reg(L,"sfillp",sfillp);reg(L,"bprint",bprint);
  reg(L,"pget",pget);reg(L,"blend",blend);
+ reg(L,"trifill",trifill);reg(L,"tri",tri);
  /* Default font uses the actual shipped TTF before the game selects its font. */
  lua_pushcfunction(L,newfont);lua_pushstring(L,"assets/fonts/Terminus.ttf");lua_pushinteger(L,12);lua_pushstring(L,"default");lua_call(L,3,0);
 }

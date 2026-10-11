@@ -8,6 +8,8 @@
 | 00.05 | `artifacts/iterations/00.05/` | Logs persistentes por ejecución, traceback Lua y símbolos nativos; pendiente de prueba en Vita |
 | 00.06 | `artifacts/iterations/00.06/` | Corregido delta() ausente al mantener pad; reproducción anterior y regresión en PC |
 
+| 00.07 | `artifacts/iterations/00.07/` | Corregido trifill() ausente con stick derecho; 5.400 frames y sanitizadores en PC; pendiente en Vita |
+
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
 00.04 y siguientes incluyen VPK, snapshot de código y documentación, herramienta,

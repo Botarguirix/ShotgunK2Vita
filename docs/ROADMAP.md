@@ -63,9 +63,19 @@ dos buffers alineados y drenaje sólo al cerrar. El nuevo backend de Shotgun
 King añade MP3 y mezcla de efectos WAV; no copia el puente DirectSound ni
 ejecuta los binarios Android/Steam del juego.
 
+## Evidencia de 00.06 y corrección 00.07
+
+El usuario informa menores tiempos de carga. La sesión recibida se detiene
+por `trifill()` ausente al inspeccionar piezas con el stick derecho. 00.07
+implementa triángulos; pasan 5.400 frames en PC y sanitizadores. Antes del
+error, la media de 774 frames equivale a 20,19 FPS; los últimos 120 a 14,53.
+Se excluye la pantalla detenida y no se extrapola una mejora de 00.07 en Vita.
+El audio no pierde bloques de cola, pero registra dos bloques tardíos y no
+confirma salida audible. [Diagnóstico completo](STATUS_ITERATION07.md).
+
 ## Próxima prueba en OLED
 
-Instalar 00.06 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
+Instalar 00.07 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
 el mismo recorrido con balanced y single. Para cada prueba conservar:
 los archivos de cada sesión en `ux0:data/shotgunk2vita/logs/`, incluido
 `crash-trace.log`, y cualquier `.psp2dmp` reciente en `ux0:data/`.
