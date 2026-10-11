@@ -17,3 +17,7 @@ void sg_report_state(void);
 #define SG_R 512u
 #define SG_START 1024u
 #define SG_SELECT 2048u
+#define SG_LPAGE 4096u
+#define SG_RPAGE 8192u
+#define SG_LSTICK 16384u
+#define SG_RSTICK 32768u

@@ -18,3 +18,5 @@ third_party/lua-5.1.5/test/
 third_party/lua-5.1.5/INSTALL
 third_party/lua-5.1.5/Makefile
 third_party/lua-5.1.5/README
+third_party/lua-5.1.5/HISTORY
+tools/*_once.py

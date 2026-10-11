@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include "lauxlib.h"
+#include "perf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,8 +15,19 @@ static size_t allocated;
 static int clipx,clipy,clipw=4096,cliph=4096,pattern,pattern_transparent;
 static unsigned short sprite_pattern[256],sprite_pair[256];
 static unsigned char blend_table[256][256];
-typedef struct{char key[80];unsigned char *data;stbtt_fontinfo info;float scale;int surface,ttf,dy,h,space;unsigned cp[256];int gx[256],gw[256],glyphs;} Font;
+static int blend_identity=1;
+typedef struct{unsigned cp;unsigned char *p;int valid,w,h,ox,oy,advance;} Glyph;
+typedef struct{char key[80];unsigned char *data;stbtt_fontinfo info;float scale;int surface,ttf,dy,h,space;unsigned cp[256];int gx[256],gw[256],glyphs;Glyph cache[256];} Font;
 static Font fonts[16];static int fontcount,current_font;
+static void free_glyphs(Font *f){for(int i=0;i<256;i++){stbtt_FreeBitmap(f->cache[i].p,NULL);memset(&f->cache[i],0,sizeof(Glyph));}}
+static Glyph *cached_glyph(Font *f,unsigned cp){
+ Glyph *g=&f->cache[cp&255];
+ if(g->valid&&g->cp==cp){sg_perf.glyph_hits++;return g;}
+ uint64_t start=sg_now_us();stbtt_FreeBitmap(g->p,NULL);memset(g,0,sizeof(*g));
+ g->cp=cp;int a,b;stbtt_GetCodepointHMetrics(&f->info,cp,&a,&b);g->advance=(int)ceil(a*f->scale);
+ g->p=stbtt_GetCodepointBitmap(&f->info,0,f->scale,cp,&g->w,&g->h,&g->ox,&g->oy);g->valid=1;
+ sg_perf.glyph_misses++;sg_perf.font_build_us+=sg_now_us()-start;return g;
+}
 static unsigned codepoint(const unsigned char **text);
 static int locate(lua_State *L,const char *key){for(int i=0;i<count;i++)if(!strcmp(surfaces[i].key,key))return i;return luaL_error(L,"Unknown surface: %s",key);}
 static int create(lua_State *L,const char *key,int w,int h){
@@ -48,10 +60,41 @@ static int camera(lua_State *L){camx=luaL_optint(L,1,0);camy=luaL_optint(L,2,0);
 static int tcamera(lua_State *L){camx+=luaL_checkint(L,1);camy+=luaL_checkint(L,2);return 0;}
 static int cls(lua_State *L){memset(surfaces[dst].p,luaL_optint(L,1,0)&255,(size_t)surfaces[dst].w*surfaces[dst].h);return 0;}
 static int color(lua_State *L){ink=luaL_optint(L,1,0);return 0;}
-static int rectfill(lua_State *L){int x1=luaL_checkint(L,1),y1=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);if(x1>x2){int t=x1;x1=x2;x2=t;}if(y1>y2){int t=y1;y1=y2;y2=t;}for(int y=y1;y<=y2;y++)for(int x=x1;x<=x2;x++)dot(x,y,c);return 0;}
+static int rectfill(lua_State *L){
+ int x1=luaL_checkint(L,1),y1=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);
+ if(x1>x2){int t=x1;x1=x2;x2=t;}if(y1>y2){int t=y1;y1=y2;y2=t;}
+ Surface *s=&surfaces[dst];x1-=camx;x2-=camx;y1-=camy;y2-=camy;
+ if(x1<0)x1=0;if(y1<0)y1=0;if(x1<clipx)x1=clipx;if(y1<clipy)y1=clipy;
+ if(x2>=s->w)x2=s->w-1;if(y2>=s->h)y2=s->h-1;if(x2>=clipx+clipw)x2=clipx+clipw-1;if(y2>=clipy+cliph)y2=clipy+cliph-1;
+ if(x1>x2||y1>y2)return 0;
+ if(!pattern&&blend_identity){for(int y=y1;y<=y2;y++)memset(s->p+y*s->w+x1,mapping[c&255],(size_t)(x2-x1+1));}
+ else for(int y=y1;y<=y2;y++)for(int x=x1;x<=x2;x++)dot(x+camx,y+camy,c);
+ return 0;
+}
 static int line(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);int dx=abs(x2-x),sx=x<x2?1:-1,dy=-abs(y2-y),sy=y<y2?1:-1,err=dx+dy;while(1){dot(x,y,c);if(x==x2&&y==y2)break;int e=err*2;if(e>=dy){err+=dy;x+=sx;}if(e<=dx){err+=dx;y+=sy;}}return 0;}
 static int circle(lua_State *L){double x=luaL_checknumber(L,1),y=luaL_checknumber(L,2),r=luaL_checknumber(L,3);int c=luaL_optint(L,4,ink);for(int yy=(int)(y-r);yy<=y+r;yy++)for(int xx=(int)(x-r);xx<=x+r;xx++)if((xx-x)*(xx-x)+(yy-y)*(yy-y)<=r*r)dot(xx,yy,c);return 0;}
-static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,int fy){Surface *s=&surfaces[sheet];if(dw<0){dx+=dw;dw=-dw;fx=!fx;}if(dh<0){dy+=dh;dh=-dh;fy=!fy;}if(dw==0||dh==0)return;int saved=pattern;pattern=0;for(int y=0;y<dh;y++)for(int x=0;x<dw;x++){int xx=sx+(fx?sw-1-x*sw/dw:x*sw/dw),yy=sy+(fy?sh-1-y*sh/dh:y*sh/dh);if(xx<0||yy<0||xx>=s->w||yy>=s->h)continue;int c=s->p[yy*s->w+xx];if(!transparent[c]){int alt=(sprite_pattern[c]>>(((dy+y-camy)&3)*4+((dx+x-camx)&3)))&1;c=(sprite_pair[c]>>(alt?8:0))&255;dot(dx+x,dy+y,c);}}pattern=saved;}
+static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,int fy){
+ Surface *s=&surfaces[sheet],*d=&surfaces[dst];
+ if(dw<0){dx+=dw;dw=-dw;fx=!fx;}if(dh<0){dy+=dh;dh=-dh;fy=!fy;}
+ if(dw<=0||dh<=0||sw<=0||sh<=0)return;
+ int x0=0,y0=0,x1=dw,y1=dh;
+ int left=camx+(clipx>0?clipx:0),top=camy+(clipy>0?clipy:0);
+ int right=camx+(clipx+clipw<d->w?clipx+clipw:d->w),bottom=camy+(clipy+cliph<d->h?clipy+cliph:d->h);
+ if(dx+x0<left)x0=left-dx;if(dy+y0<top)y0=top-dy;if(dx+x1>right)x1=right-dx;if(dy+y1>bottom)y1=bottom-dy;
+ if(x0>=x1||y0>=y1)return;
+ sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);
+ int step=sw/dw,extra=sw%dw,start=x0*sw/dw,startrem=x0*sw%dw;
+ for(int y=y0;y<y1;y++){
+  int yy=sy+(fy?sh-1-y*sh/dh:y*sh/dh);if(yy<0||yy>=s->h)continue;
+  int q=start,rem=startrem,ty=dy+y-camy;unsigned char *row=d->p+ty*d->w;
+  for(int x=x0;x<x1;x++){
+   int xx=sx+(fx?sw-1-q:q);q+=step;rem+=extra;if(rem>=dw){rem-=dw;q++;}
+   if(xx<0||xx>=s->w)continue;
+   int c=s->p[yy*s->w+xx],tx=dx+x-camx;
+   if(!transparent[c]){int alt=(sprite_pattern[c]>>((ty&3)*4+(tx&3)))&1;c=mapping[(sprite_pair[c]>>(alt?8:0))&255];row[tx]=blend_identity?c:blend_table[c][row[tx]];}
+  }
+ }
+}
 static int asspr(lua_State *L){
  int sx=luaL_checkint(L,1),sy=luaL_checkint(L,2),sw=luaL_checkint(L,3),sh=luaL_checkint(L,4);
  double dx=luaL_checknumber(L,5),dy=luaL_checknumber(L,6),a=luaL_checknumber(L,7)*6.283185307179586;
@@ -79,17 +122,17 @@ static int clip(lua_State *L){clipx=luaL_optint(L,1,0);clipy=luaL_optint(L,2,0);
 static int rect(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);for(int xx=x;xx<=x2;xx++){dot(xx,y,c);dot(xx,y2,c);}for(int yy=y;yy<=y2;yy++){dot(x,yy,c);dot(x2,yy,c);}return 0;}
 static int pset(lua_State *L){dot(luaL_checkint(L,1),luaL_checkint(L,2),luaL_optint(L,3,ink));return 0;}
 static int pget(lua_State *L){Surface *s=&surfaces[dst];int x=luaL_checkint(L,1)-camx,y=luaL_checkint(L,2)-camy;lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
-static int blend(lua_State *L){if(!lua_gettop(L)){for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else blend_table[luaL_checkint(L,1)&255][luaL_checkint(L,2)&255]=luaL_checkint(L,3)&255;return 0;}
+static int blend(lua_State *L){if(!lua_gettop(L)){blend_identity=1;for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else {blend_identity=0;blend_table[luaL_checkint(L,1)&255][luaL_checkint(L,2)&255]=luaL_checkint(L,3)&255;}return 0;}
 static int exe(lua_State *L){int d=dst,s=sheet,cx=camx,cy=camy,p=pattern,tr=pattern_transparent,ic=ink,cx0=clipx,cy0=clipy,cw=clipw,ch=cliph,f=current_font;unsigned char map[256];memcpy(map,mapping,256);lua_pushvalue(L,1);int status=lua_pcall(L,0,0,0);dst=d;sheet=s;camx=cx;camy=cy;pattern=p;pattern_transparent=tr;ink=ic;clipx=cx0;clipy=cy0;clipw=cw;cliph=ch;current_font=f;memcpy(mapping,map,256);if(status)return lua_error(L);return 0;}
 static int patterns(lua_State *L){lua_newtable(L);int x=luaL_checkint(L,1),y=luaL_checkint(L,2),n=luaL_checkint(L,3);for(int i=0;i<n;i++){Surface *s=&surfaces[sheet];int value=0;for(int yy=0;yy<4;yy++)for(int xx=0;xx<4;xx++)if(s->p[(y+yy)*s->w+x+i*4+xx])value|=1<<(yy*4+xx);lua_pushinteger(L,value);lua_rawseti(L,-2,i+1);}return 1;}
-static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=luaL_optstring(L,3,"default");int id;for(id=0;id<fontcount;id++)if(!strcmp(fonts[id].key,key))break;if(id==fontcount){if(fontcount==16)return luaL_error(L,"Font limit");fontcount++;}Font *f=&fonts[id];free(f->data);memset(f,0,sizeof(*f));snprintf(f->key,sizeof(f->key),"%s",key);f->space=4;f->h=8;
+static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=luaL_optstring(L,3,"default");int id;for(id=0;id<fontcount;id++)if(!strcmp(fonts[id].key,key))break;if(id==fontcount){if(fontcount==16)return luaL_error(L,"Font limit");fontcount++;}Font *f=&fonts[id];free_glyphs(f);free(f->data);memset(f,0,sizeof(*f));snprintf(f->key,sizeof(f->key),"%s",key);f->space=4;f->h=8;
  if(strstr(path,".ttf")){char full[2048];snprintf(full,sizeof(full),"%s/%s",data_root,path);FILE *file=fopen(full,"rb");if(!file)return luaL_error(L,"Missing font %s",full);fseek(file,0,SEEK_END);long n=ftell(file);rewind(file);if(n<1||n>8*1024*1024){fclose(file);return luaL_error(L,"Font size limit");}f->data=malloc(n);if(!f->data){fclose(file);return luaL_error(L,"Font allocation failed");}size_t got=fread(f->data,1,n,file);fclose(file);if(got!=(size_t)n||!stbtt_InitFont(&f->info,f->data,0))return luaL_error(L,"Invalid font");f->ttf=1;f->h=luaL_checkint(L,2);f->scale=stbtt_ScaleForPixelHeight(&f->info,(float)f->h);
  }else{char name[100];snprintf(name,sizeof(name),"font_%s",key);f->surface=load(L,path,name,0);Surface *s=&surfaces[f->surface];const unsigned char *chars=(const unsigned char *)luaL_checkstring(L,2);int x=0;while(*chars&&x<s->w&&f->glyphs<256){while(x<s->w){int used=0;for(int y=0;y<s->h;y++)used|=s->p[y*s->w+x];if(used)break;x++;}int start=x;while(x<s->w){int used=0;for(int y=0;y<s->h;y++)used|=s->p[y*s->w+x];if(!used)break;x++;}int g=f->glyphs++;f->cp[g]=codepoint(&chars);f->gx[g]=start;f->gw[g]=x-start;}f->h=s->h+1;}
  lua_pushstring(L,key);return 1;}
 static int selectfont(lua_State *L){const char *key=luaL_optstring(L,1,"default");for(int i=0;i<fontcount;i++)if(!strcmp(fonts[i].key,key)){current_font=i;return 0;}return luaL_error(L,"Unknown font %s",key);}
 static unsigned codepoint(const unsigned char **text){const unsigned char *p=*text;unsigned c=*p++;if(c>=0xc0&&c<0xe0&&*p)c=((c&31)<<6)|(*p++&63);else if(c>=0xe0&&c<0xf0&&p[0]&&p[1]){c=((c&15)<<12)|((p[0]&63)<<6)|(p[1]&63);p+=2;}*text=p;return c;}
-static int advance(Font *f,unsigned c){if(c==' ')return f->space;if(f->ttf){int a,b;stbtt_GetCodepointHMetrics(&f->info,c,&a,&b);return (int)ceil(a*f->scale);}for(int i=0;i<f->glyphs;i++)if(f->cp[i]==c)return f->gw[i]+1;return 4;}
-static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[current_font];int start=x;const unsigned char *p=(const unsigned char *)str;while(*p){unsigned cp=codepoint(&p);if(cp=='\n'){x=start;y+=f->h;continue;}if(draw&&cp!=' '){if(f->ttf){int w,h,ox,oy;unsigned char *bitmap=stbtt_GetCodepointBitmap(&f->info,0,f->scale,cp,&w,&h,&ox,&oy);for(int yy=0;yy<h;yy++)for(int xx=0;xx<w;xx++)if(bitmap[yy*w+xx]>=100)dot(x+ox+xx,y+f->h+oy+yy+f->dy,c);stbtt_FreeBitmap(bitmap,NULL);}else{Surface *s=&surfaces[f->surface];for(int g=0;g<f->glyphs;g++)if(f->cp[g]==cp){for(int yy=0;yy<s->h-1;yy++)for(int xx=0;xx<f->gw[g];xx++)if(s->p[yy*s->w+f->gx[g]+xx])dot(x+xx,y+yy,c);break;}}}x+=advance(f,cp);}return x;}
+static int advance(Font *f,unsigned c){if(c==' ')return f->space;if(f->ttf)return cached_glyph(f,c)->advance;for(int i=0;i<f->glyphs;i++)if(f->cp[i]==c)return f->gw[i]+1;return 4;}
+static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[current_font];int start=x;const unsigned char *p=(const unsigned char *)str;while(*p){unsigned cp=codepoint(&p);if(cp=='\n'){x=start;y+=f->h;continue;}if(draw&&cp!=' '){if(f->ttf){Glyph *g=cached_glyph(f,cp);if(g->p)for(int yy=0;yy<g->h;yy++)for(int xx=0;xx<g->w;xx++)if(g->p[yy*g->w+xx]>=100)dot(x+g->ox+xx,y+f->h+g->oy+yy+f->dy,c);}else{Surface *s=&surfaces[f->surface];for(int g=0;g<f->glyphs;g++)if(f->cp[g]==cp){for(int yy=0;yy<s->h-1;yy++)for(int xx=0;xx<f->gw[g];xx++)if(s->p[yy*s->w+f->gx[g]+xx])dot(x+xx,y+yy,c);break;}}}x+=advance(f,cp);}return x;}
 static int text(lua_State *L){const char *str=luaL_checkstring(L,1);if(lua_gettop(L)<3){fprintf(stdout,"%s\n",str);lua_pushinteger(L,0);return 1;}int x=luaL_checkint(L,2),y=luaL_checkint(L,3),c=luaL_optint(L,4,ink);lua_pushinteger(L,drawtext(str,x,y,c,1));return 1;}
 static int width(lua_State *L){lua_pushinteger(L,drawtext(luaL_checkstring(L,1),0,0,ink,0));return 1;}
 static int bprint(lua_State *L){const char *str=luaL_checkstring(L,1);int start=luaL_checkint(L,2),x=start,y=luaL_checkint(L,3),w=luaL_checkint(L,4),c=luaL_optint(L,5,ink);const unsigned char *p=(const unsigned char *)str;while(*p){const unsigned char *begin=p;unsigned cp=codepoint(&p);int a=advance(&fonts[current_font],cp);if(cp=='\n'||x+a>start+w){x=start;y+=fonts[current_font].h;if(cp=='\n')continue;}char glyph[8]={0};size_t n=(size_t)(p-begin);if(n<sizeof(glyph))memcpy(glyph,begin,n);drawtext(glyph,x,y,c,1);x+=a;}lua_pushinteger(L,y+fonts[current_font].h);return 1;}
@@ -106,5 +149,26 @@ void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(d
  /* Default font uses the actual shipped TTF before the game selects its font. */
  lua_pushcfunction(L,newfont);lua_pushstring(L,"assets/fonts/Terminus.ttf");lua_pushinteger(L,12);lua_pushstring(L,"default");lua_call(L,3,0);
 }
-void sg_present(uint32_t *p,int width,int height){Surface *s=&surfaces[0];if(!s->p||!s->w||!s->h){memset(p,0,(size_t)width*height*4);return;}int scale=width/s->w;if(height/s->h<scale)scale=height/s->h;if(scale<1)scale=1;int ox=(width-s->w*scale)/2,oy=(height-s->h*scale)/2;int overlay=-1;for(int i=0;i<count;i++)if(!strcmp(surfaces[i].key,"hdtext"))overlay=i;for(int y=0;y<height;y++)for(int x=0;x<width;x++){int xx=(x-ox)/scale,yy=(y-oy)/scale;int c=0;if(x>=ox&&y>=oy&&xx<s->w&&yy<s->h){c=s->p[yy*s->w+xx];if(overlay>=0){Surface *o=&surfaces[overlay];int px=xx*o->w/s->w,py=yy*o->h/s->h;int v=o->p[py*o->w+px];if(v!=255)c=v;}}p[y*width+x]=colors[displaymap[c]];}}
-void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++)free(fonts[i].data);memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}
+void sg_present_rows(uint32_t *p,int width,int height,int first,int last){
+ Surface *s=&surfaces[0];if(first<0)first=0;if(last>height)last=height;if(first>=last)return;
+ if(!s->p||!s->w||!s->h){memset(p+(size_t)first*width,0,(size_t)(last-first)*width*4);return;}
+ int scale=width/s->w;if(height/s->h<scale)scale=height/s->h;if(scale<1)scale=1;
+ int ox=(width-s->w*scale)/2,oy=(height-s->h*scale)/2,overlay=-1,previous=-1;
+ uint32_t palette[256];for(int i=0;i<256;i++)palette[i]=colors[displaymap[i]];
+ for(int i=0;i<count;i++)if(!strcmp(surfaces[i].key,"hdtext")&&surfaces[i].p)overlay=i;
+ for(int y=first;y<last;y++){
+  uint32_t *row=p+(size_t)y*width;int yy=(y-oy)/scale;
+  if(y<oy||yy>=s->h){for(int x=0;x<width;x++)row[x]=palette[0];previous=-1;continue;}
+  if(yy==previous){memcpy(row,row-width,(size_t)width*4);continue;}
+  previous=yy;for(int x=0;x<width;x++)row[x]=palette[0];
+  Surface *o=overlay>=0?&surfaces[overlay]:NULL;int py=o?yy*o->h/s->h:0;
+  for(int x=0;x<s->w;x++){
+   int c=s->p[yy*s->w+x];if(o){int v=o->p[py*o->w+x*o->w/s->w];if(v!=255)c=v;}
+   int start=ox+x*scale,end=start+scale;if(start<0)start=0;if(end>width)end=width;
+   uint32_t value=palette[c];for(int xx=start;xx<end;xx++)row[xx]=value;
+  }
+ }
+}
+void sg_present(uint32_t *p,int width,int height){sg_present_rows(p,width,height,0,height);}
+
+void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++){free_glyphs(&fonts[i]);free(fonts[i].data);}memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}

@@ -1,51 +1,63 @@
-# VPK experimental 00.02
+# VPK experimental 00.03
 
-## Instalación
+## Actualizar desde 00.02
 
-1. Extraer `shotgunk2vita-data.zip` en la computadora.
-2. Copiar su carpeta `shotgunk2vita` a `ux0:data/` con VitaShell.
-   Debe existir `ux0:data/shotgunk2vita/code.lua`, además de `code/`,
-   `libs/`, `assets/` y los archivos `.sgimg` junto a sus PNG.
-3. Copiar `ShotgunK2Vita-bootstrap.vpk` e instalarlo desde VitaShell.
-4. Abrir ShotgunK2Vita Bootstrap desde LiveArea. Esperar la carga inicial.
-5. X abre/acepta; cruceta o stick izquierdo navegan; círculo cancela;
-   triángulo recarga; cuadrado activa acciones especiales; R dispara.
-   El stick derecho apunta. START pausa. START+SELECT sale de la aplicación.
-   Los gatillos de Vita comparten funciones de shoulder/trigger del mando PC;
-   algunos menús necesitan adaptación adicional.
-6. Elegir Throne, rank 1, Solomon y START. Avanzar las viñetas con X.
+Instalar `ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+`SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
+No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
+La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
 
-El ZIP se entrega sin partidas guardadas de la prueba de PC. No reemplazar
-una carpeta `save/` propia si ya tienes progreso de una prueba anterior.
-No necesita las bibliotecas ARM64 del APK, Steam, FMOD ni SDL3 de Windows.
+Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
+carpeta `shotgunk2vita` a `ux0:data/`. Debe existir
+`ux0:data/shotgunk2vita/code.lua`, `assets/`, `code/`, `libs/` y los `.sgimg`
+junto a los PNG. El ZIP se prepara sin saves de pruebas de PC.
 
-## Evidencia y límites
+## Controles
 
-La compilación nativa usa VitaSDK GCC 15.2.0. El VPK se valida como ZIP y
-contiene eboot.bin y param.sfo. La prueba de PC llega a `ingame=true` y
-`playing=true`, mostrando el primer tablero con los scripts originales.
-Todavía no se ha medido ni verificado el funcionamiento en hardware Vita.
+![Controles PS Vita](images/controls-vita.png)
 
-Audio y vibración están desactivados. CRT/window settings no se aplican.
-El renderizador y la API SUGAR son parciales: pueden existir diferencias
-visuales, de fuentes, paletas y texto, o llamadas pendientes en partidas,
-cartas o modos que todavía no se han recorrido. No es un port completo.
-Las partidas antiguas codificadas del juego original no se importan.
+X confirma/mueve; círculo cancela; cuadrado es acción especial; triángulo
+recarga. Cruceta/stick izquierdo navegan y seleccionan destino. Stick derecho
+apunta. R dispara; L mantenido permite movimiento arriesgado. START pausa y
+SELECT muestra información.
 
-## Diagnóstico
+SELECT+L/R cambia páginas. SELECT+cuadrado/círculo suple L3/R3.
+SELECT+triángulo muestra/oculta el medidor. START+SELECT sale.
+Las combinaciones consumen el botón hasta soltarlo para evitar que al soltar
+SELECT se produzca un disparo o una recarga accidental.
 
-Si aparece una pantalla de error, conservar
-`ux0:data/shotgunk2vita/runtime.log`. Contiene el archivo/línea de Lua o
-recurso que bloqueó el arranque y contadores de fotogramas nativos.
-Enviar ese registro y describir hasta qué pantalla llegó el juego.
-Si se cierra antes de escribirlo, informar también el código de error de Vita.
-El registro se reemplaza en cada arranque: copiarlo antes de abrir otra vez.
+En los gráficos originales de PS pueden aparecer R2/L2: corresponden a R/L
+físicos. La guía externa muestra el mapa adaptado. Elegir Throne, rank 1,
+Solomon y START; avanzar las viñetas con X.
 
-Los datos del ZIP son archivos comerciales de la copia local del usuario.
-No subir el ZIP, APK ni scripts/recursos del juego al repositorio.
+## Rendimiento y audio
 
-Validación adicional: la misma secuencia de 4.800 fotogramas se ejecutó con
-el ZIP extraído en una carpeta limpia, usando AddressSanitizer y
-UndefinedBehaviorSanitizer en PC, sin diagnósticos. La prueba sin datos
-termina con un error explícito de recurso faltante. Esto no verifica el
-rendimiento, el heap o los servicios del sistema en Vita.
+Sin configuración, solicita CPU 444 MHz y tres participantes para presentación.
+El trabajo de Lua sigue en un hilo. Audio funciona en un hilo prioritario
+independiente, con MP3 por streaming y mezcla WAV PCM16 estéreo a 44,1 kHz.
+Se usa el patrón de dos buffers de la implementación de música de Touhou 7.5.
+
+El HUD muestra FPS reales entre presentaciones y tiempos U/D/P en ms.
+[Herramienta de rendimiento](PERFORMANCE_TOOL.md) explica perfiles balanced,
+single y battery, y la generación de informes HTML.
+
+Las pruebas de PC alcanzan partida activa, comparan imágenes idénticas con
+uno/tres hilos y verifican cinco minutos de audio mezclado, pista A→B y bucles.
+Falta confirmar en Vita la mejora de FPS, sonido audible, latencia y estabilidad.
+Audio OGG de la intro alternativa, crossfade completo, canales musicales
+simultáneos, shaders/CRT y compatibilidad de todas las cartas/modos siguen
+pendientes. Las partidas antiguas codificadas no se importan.
+
+## Qué enviar después de probar
+
+Salir con START+SELECT y conservar estos archivos antes de abrir otra vez:
+
+- `ux0:data/shotgunk2vita/performance.csv`
+- `ux0:data/shotgunk2vita/runtime.log`
+- `ux0:data/shotgunk2vita/audio.log`
+
+Informar FPS en título/menú/tablero, si se oye música y efectos, y si los
+controles responden. Si hay cierre o pantalla de error, conservar también
+el código de error y describir la última pantalla.
+
+[Roadmap y límites de la evidencia](ROADMAP.md).
