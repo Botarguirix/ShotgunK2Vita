@@ -113,6 +113,25 @@ static int option_access(lua_State *L,int write){
 }
 static int option_get(lua_State *L){return option_access(L,0);}
 static int option_set(lua_State *L){luaL_checkany(L,4);return option_access(L,1);}
+static void index_options(lua_State *L){
+ /* The APK's options array is also addressed by id in the desktop pause UI.
+  * Preserve array order and descriptor aliases; convert numeric id aliases
+  * to the same descriptors expected by our SET bridge. */
+ lua_getglobal(L,"OPTIONS");
+ if(lua_istable(L,-1))for(int i=1;i<=(int)lua_objlen(L,-1);i++){
+  lua_rawgeti(L,-1,i);
+  if(lua_istable(L,-1)){
+   lua_getfield(L,-1,"id");
+   if(lua_isstring(L,-1)){
+    lua_pushvalue(L,-1);lua_rawget(L,-4);
+    int missing=lua_isnil(L,-1)||lua_isnumber(L,-1);lua_pop(L,1);
+    if(missing){lua_pushvalue(L,-2);lua_rawset(L,-4);}else lua_pop(L,1);
+   }else lua_pop(L,1);
+  }
+  lua_pop(L,1);
+ }
+ lua_pop(L,1);
+}
 static int delta(lua_State *L){lua_pushnumber(L,1.0/60);return 1;}
 static int sugarstep(lua_State *L){(void)L;frame_time+=1.0/60;return 0;}
 static int lerp(lua_State *L){double a=luaL_checknumber(L,1),b=luaL_checknumber(L,2),c=luaL_checknumber(L,3);lua_pushnumber(L,a+(b-a)*c);return 1;}
@@ -177,7 +196,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("round",roundvalue);
     reg("sgn",signvalue);
     reg("rm",remove_save);
-    reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
+    reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
     const char *maths[]={"abs","min","max","sqrt","floor","ceil","sin","cos","tan","atan2","pow","log",NULL};
     for(int i=0;maths[i];i++)if(strcmp(maths[i],"log"))alias(maths[i],"math",maths[i]);
     reg("sin",turn_sin);reg("cos",turn_cos);
@@ -203,11 +222,22 @@ int sg_boot(const char *root,FILE *log) {
     sg_diag_event("load",path);
     int status=luaL_loadfile(state,path);if(!status)status=protected_call(state,0,0);
     if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=protected_call(state,0,0);}
-    if(!status){lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
+    if(!status){index_options(state);lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     logline("_init completed");return 1;
 }
 const char *sg_error(void){return failure;}
+#ifndef SG_VITA
+/* Host regression harness: absent from the Vita executable. */
+int sg_host_eval(const char *script){
+ if(!state||failure[0])return 0;
+ instructions=0;
+ int rc=luaL_loadstring(state,script);
+ if(!rc)rc=protected_call(state,0,0);
+ if(rc){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);lua_pop(state,1);return 0;}
+ return 1;
+}
+#endif
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
 int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
 unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}

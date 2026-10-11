@@ -9,9 +9,11 @@ import re
 from pathlib import Path
 
 PRESETS = {
-    'balanced': {'cpu_mhz': 444, 'workers': 3, 'hud': 1, 'profile': 1},
-    'single': {'cpu_mhz': 444, 'workers': 1, 'hud': 1, 'profile': 1},
-    'battery': {'cpu_mhz': 333, 'workers': 2, 'hud': 1, 'profile': 1},
+    'balanced': {'cpu_mhz': 444, 'workers': 3, 'copy_mode': 2, 'profile': 1},
+    'single': {'cpu_mhz': 444, 'workers': 1, 'copy_mode': 2, 'profile': 1},
+    'copy-cpu': {'cpu_mhz': 444, 'workers': 3, 'copy_mode': 0, 'profile': 1},
+    'copy-dma': {'cpu_mhz': 444, 'workers': 3, 'copy_mode': 1, 'profile': 1},
+    'battery': {'cpu_mhz': 333, 'workers': 2, 'copy_mode': 2, 'profile': 1},
 }
 STAGES = ('update_ms', 'draw_ms', 'present_ms', 'wait_ms')
 
@@ -44,6 +46,8 @@ def summary(rows):
         'frame_mean_ms': statistics.mean(frames), 'frame_p95_ms': frames[math.ceil(.95*len(frames))-1],
         'stages_ms': {k: statistics.mean(r[k] for r in rows) for k in STAGES},
         'copy_mean_ms': statistics.mean(r.get('copy_ms', 0) for r in rows),
+        'copy_modes': sorted(set(int(r['copy_mode']) for r in rows if 'copy_mode' in r)),
+        'copy_status_codes': sorted(set(int(r['copy_rc']) for r in rows if 'copy_rc' in r)),
         'glyph_misses': sum(r.get('glyph_misses', 0) for r in rows),
         'render_participants_ms': {k: statistics.mean(r[k] for r in rows) for k in ('render0_ms','render1_ms','render2_ms') if all(k in r for r in rows)},
         'workers': sorted(set(int(r.get('workers', 1)) for r in rows)),
@@ -56,6 +60,9 @@ def report(args):
     name = html.escape(args.csv.name)
     table = ''.join(f'<tr><td>{html.escape(k)}</td><td>{v:.3f} ms</td></tr>' for k, v in stats['stages_ms'].items())
     table += f'<tr><td>Copia RAM → pantalla (00.08+)</td><td>{stats["copy_mean_ms"]:.3f} ms</td></tr>'
+    if stats['copy_modes']:
+        backends = ', '.join('DMA' if m else 'CPU' for m in stats['copy_modes'])
+        table += f'<tr><td>Backend de copia</td><td>{backends}; rc={stats["copy_status_codes"]}</td></tr>'
     if stats['render_participants_ms']:
         table += '<tr><td colspan="2">Trabajo de filas por participante (en paralelo; no sumar a frame_ms)</td></tr>'
         table += ''.join(f'<tr><td>{k}</td><td>{v:.3f} ms</td></tr>' for k,v in stats['render_participants_ms'].items())

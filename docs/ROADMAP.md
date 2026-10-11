@@ -1,9 +1,9 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION08.md](INFORME_ROADMAP_ITERACION08.md).
+Informe actual: [INFORME_ROADMAP_ITERACION09.md](INFORME_ROADMAP_ITERACION09.md).
 
-Actualizado: 2026-10-10. El usuario confirmó que 00.02 arranca en Vita OLED,
+Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
 00.03 es corregir costes evitables, habilitar audio y medir la consola.
 El usuario reportó después error 0x8010113D. La entrega 00.04 corrige los PNG
@@ -84,7 +84,7 @@ en RAM, y optimiza máscaras de texto. Pasan 6000 frames de combate en PC
 y la batería ampliada con sanitizadores. La referencia activa de 00.07
 es 19,53 FPS; mejora de FPS y parpadeo de 00.08 pendientes en hardware.
 Persistencia, más cartas/pisos y APIs incompletas impiden declarar el port
-estable. [Informe y criterios](INFORME_ROADMAP_ITERACION08.md).
+estable. [Informe y criterios](INFORME_ROADMAP_ITERACION09.md).
 
 ## Próxima prueba en OLED
 
@@ -116,3 +116,18 @@ Referencias: [hilos VitaSDK](https://docs.vitasdk.org/group__SceThreadMgrUser.ht
 [formato PNG LiveArea y error 0x8010113D](https://gist.github.com/hammerill/64411eebf071b93396b7d310ba8d6776),
 [dr_mp3](https://github.com/mackron/dr_libs/blob/master/dr_mp3.h),
 [API pública SUGAR](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide).
+
+## Estado actual: Iteración 09 — Frame Transfer
+
+El usuario confirma gran mejora de 00.08. Su log contiene 7036 frames activos:
+18,00 FPS derivados, media 55,56 ms y P95 83,42 ms. Update 10,96 ms, draw
+19,86 ms, presentación 6,14 ms, copia 8,41 ms y espera 7,75 ms. Tres
+participantes, reloj observado 500 MHz. Son fases distintas de las corridas
+anteriores: no demostrar una ganancia o regresión con medias incomparables.
+La sesión termina por ismobile() ausente en la pausa. 09 registra esa API y convierte los índices OPTIONS[id] al puente SET,
+retira HUD y compara CPU/DMA con comprobación de integridad y fallback.
+La mejora de FPS de 09 y comportamiento DMA requieren prueba física.
+
+Secuencia nombrada: 10 Input Cache, 11 GPU Presenter, 12 Frame Budget.
+[Investigación de otros ports y aplicación](PORT_OPTIMIZATION_RESEARCH.md).
+[Seguimiento por iteración](ITERATIONS.md).

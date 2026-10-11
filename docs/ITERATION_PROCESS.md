@@ -9,7 +9,7 @@ Se conserva la numeración SFO 00.NN y las carpetas ya usadas en ShotgunK2Vita.
    acción que lo dispara y resultados observados. Un core necesita el ELF de
    su propia compilación; el sufijo `.tmp` no determina por sí solo su validez.
 2. Definir causa, cambio y prueba de aceptación. Para una entrega nueva,
-   incrementar `SG_BUILD_VERSION` en CMake; comprobar que no exista ya su
+   incrementar `SG_BUILD_VERSION` y asignar `SG_BUILD_NAME` en CMake; comprobar que no exista ya su
    carpeta de entrega. Los cambios de documentación no requieren otro VPK.
 3. Implementar y comprobar. En Linux/WSL ejecutar
    `bash scripts/check_iteration.sh`: triángulos, stick derecho, disparo/recarga,
@@ -44,7 +44,8 @@ Estructura de cada entrega futura:
 
 ```text
 artifacts/iterations/00.NN/
-  ShotgunK2Vita-performance.vpk
+  ShotgunK2Vita-iterationNN-nombre.vpk
+  iteration.json
   debug/ShotgunK2Vita.elf + ShotgunK2Vita.map
   source/                       código/documentación del paquete
   evidence/                     entrada y resultados locales

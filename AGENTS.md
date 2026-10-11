@@ -1,7 +1,7 @@
 # Proceso de iteraciones ShotgunK2Vita
 
 Seguir docs/ITERATION_PROCESS.md para cada entrega, adaptado del proyecto local
-Touhou 7.5. La versión vigente está únicamente en SG_BUILD_VERSION de CMake.
+Touhou 7.5. La versión y nombre vigentes están en SG_BUILD_VERSION y SG_BUILD_NAME de CMake.
 
 - Conservar todas las entregas existentes: nunca reutilizar ni sobrescribir
   artifacts/iterations/<versión>. No incrementar versión por documentación sola.

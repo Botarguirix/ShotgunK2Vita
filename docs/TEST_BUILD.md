@@ -1,8 +1,8 @@
-# VPK experimental 00.08
+# Iteración 09 — Frame Transfer (00.09)
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.08/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.09/ShotgunK2Vita-iteration09-frame-transfer.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -20,7 +20,7 @@ fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.08/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.09/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -47,7 +47,7 @@ apunta. R dispara; L mantenido permite movimiento arriesgado. START pausa y
 SELECT muestra información.
 
 SELECT+L/R cambia páginas. SELECT+cuadrado/círculo suple L3/R3.
-SELECT+triángulo muestra/oculta el medidor. START+SELECT sale.
+SELECT+triángulo ya no activa ningún medidor. START+SELECT sale.
 Las combinaciones consumen el botón hasta soltarlo para evitar que al soltar
 SELECT se produzca un disparo o una recarga accidental.
 
@@ -62,7 +62,8 @@ El trabajo de Lua sigue en un hilo. Audio funciona en un hilo prioritario
 independiente, con MP3 por streaming y mezcla WAV PCM16 estéreo a 44,1 kHz.
 Se usa el patrón de dos buffers de la implementación de música de Touhou 7.5.
 
-El HUD muestra FPS reales entre presentaciones y tiempos U/D/P en ms.
+Nuestro contador se ha retirado, incluso con hud=1 en configuraciones antiguas.
+CSV y logs conservan FPS y tiempos de lógica/dibujo/presentación/copia/espera.
 [Herramienta de rendimiento](PERFORMANCE_TOOL.md) explica perfiles balanced,
 single y battery, y la generación de informes HTML.
 
@@ -89,3 +90,13 @@ controles responden. Si hay cierre o pantalla de error, conservar también
 el código de error y describir la última pantalla.
 
 [Roadmap y límites de la evidencia](ROADMAP.md).
+
+## Prueba de 00.09
+
+Abrir y cerrar pausa con START, entrar en opciones y volver a la partida.
+Probar R, triángulo y ambos sticks durante cinco minutos. Usar el plugin propio
+para ver FPS; copiar la sesión completa al salir. Conservar datos y partidas.
+El registro `copy_probe` identifica integridad y backend elegido. `copy_mode=2`
+es automático; 0 fuerza CPU, 1 solicita DMA (con fallback si falla). Comparar
+copy-cpu/copy-dma en el mismo recorrido, observando parpadeo y `copy_ms`.
+No se ha comprobado todavía esta transferencia en una consola física.

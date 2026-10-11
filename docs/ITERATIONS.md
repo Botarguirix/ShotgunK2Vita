@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION08.md](INFORME_ROADMAP_ITERACION08.md).
+Informe actual: [INFORME_ROADMAP_ITERACION09.md](INFORME_ROADMAP_ITERACION09.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -12,6 +12,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION08.md](INFORME_ROADMAP_ITERACION08.md)
 | 00.06 | `artifacts/iterations/00.06/` | Corregido delta() ausente al mantener pad; reproducción anterior y regresión en PC |
 | 00.07 | `artifacts/iterations/00.07/` | Corregido trifill() ausente con stick derecho; 5.400 frames y sanitizadores en PC; pendiente en Vita |
 | 00.08 | `artifacts/iterations/00.08/` | Disparo aspr y opciones corregidos; doble búfer/RAM y texto optimizado; regresiones PC; Vita pendiente |
+| 00.09 | `artifacts/iterations/00.09/` | Frame Transfer: pausa/opciones, sin HUD y CPU/DMA; hardware pendiente |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
@@ -29,3 +30,17 @@ reutilizables dentro de su versión; las entregas empaquetadas se conservan.
 La validación local comprueba ZIP/CRC, SFO/título/versión, dimensiones PNG,
 tipo de color indexado, profundidad de 8 bits, paleta completa sin transparencia
 y referencias de LiveArea. Esto no confirma instalación ni rendimiento en Vita.
+
+## Nombres y secuencia de optimización
+
+| Iteración | Nombre | Estado / criterio |
+|---|---|---|
+| 09 / 00.09 | Frame Transfer | VPK nuevo: pausa, sin HUD, copia CPU/DMA medible; hardware pendiente |
+| 10 / 00.10 | Input Cache | Plan: parsear bindings una vez; reducir update_ms sin cambiar controles |
+| 11 / 00.11 | GPU Presenter | Plan: escalado/composición GXM; imagen equivalente y sin parpadeo |
+| 12 / 00.12 | Frame Budget | Plan: perfilar dibujo/Lua, media/P95 y campaña de estabilidad |
+
+Sólo 09 tiene una entrega nueva. 10–12 son etapas propuestas, adaptables a los
+logs siguientes. Las carpetas históricas permanecen intactas. CMake contiene
+SG_BUILD_VERSION y SG_BUILD_NAME; el paquete registra iteration.json y nombre
+legible del VPK. No incrementar versión para actualizar resultados solamente.

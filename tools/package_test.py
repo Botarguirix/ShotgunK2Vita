@@ -22,7 +22,10 @@ if validation['sfo'].get('APP_VER') != iteration:
 out = root / 'artifacts/iterations' / iteration
 # Never overwrite a previous delivery, even when packaging is retried.
 out.mkdir(parents=True, exist_ok=False)
-vpk = out / 'ShotgunK2Vita-performance.vpk'
+build_name = re.search(r'set\(SG_BUILD_NAME "([^"]+)"\)', (root/'CMakeLists.txt').read_text()).group(1)
+slug = re.sub(r'[^a-z0-9]+', '-', build_name.lower()).strip('-')
+vpk = out / f'ShotgunK2Vita-iteration{iteration[-2:]}-{slug}.vpk'
+(out/'iteration.json').write_text(json.dumps({'version':iteration,'name':build_name,'vpk':vpk.name},indent=2),encoding='utf-8')
 shutil.copy2(source_vpk, vpk)
 (out/'validation.json').write_text(json.dumps(validation,indent=2),encoding='utf-8')
 snapshot = out/'source'
@@ -40,9 +43,7 @@ debug = out/'debug'
 debug.mkdir()
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita', debug/'ShotgunK2Vita.elf')
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita.map', debug/'ShotgunK2Vita.map')
-for name in ('performance.cfg',):
-    if (root/'artifacts'/name).is_file():
-        shutil.copy2(root/'artifacts'/name, out/name)
+(out/'performance.cfg').write_text('cpu_mhz=444\nworkers=3\ncopy_mode=2\nprofile=1\n',encoding='ascii')
 package_performance(out/'ShotgunK2Vita-PerformanceTool.zip')
 diagnostic_tool=out/'ShotgunK2Vita-DiagnosticsTool.zip'
 with zipfile.ZipFile(diagnostic_tool,'w',zipfile.ZIP_DEFLATED) as z:

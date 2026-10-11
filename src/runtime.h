@@ -6,6 +6,9 @@ void sg_close(void);
 int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y);
 void sg_report_state(void);
 unsigned sg_lua_memory_kb(void);
+#ifndef SG_VITA
+int sg_host_eval(const char *script);
+#endif
 #define SG_CROSS 1u
 #define SG_CIRCLE 2u
 #define SG_SQUARE 4u

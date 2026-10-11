@@ -1,16 +1,15 @@
-# Herramienta de rendimiento · versión 00.08
+# Herramienta de rendimiento · versión 00.09
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
 Usar ese archivo para los informes; [recuperación de logs](CRASH_LOGS.md).
-El HUD muestra FPS y
-milisegundos de lógica (U), dibujo (D) y presentación (P). SELECT+TRIÁNGULO
-lo oculta o muestra. `W` indica cuántos participantes tiene la presentación;
-no es un porcentaje de utilización de CPU.
+Nuestro contador de pantalla está retirado. `hud` antiguo se ignora; el plugin
+puede mostrar FPS. Las métricas internas se compilan y siguen guardándose en
+CSV/logs. Los participantes de presentación no indican utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.08 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.09 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
@@ -47,7 +46,7 @@ Copiar el archivo a `ux0:data/shotgunk2vita/performance.cfg` y reiniciar el jueg
 | battery | 333 MHz | 2 | Comparar consumo/rendimiento |
 
 Sin archivo se usa balanced. Los únicos valores aceptados de `cpu_mhz` son
-333 y 444; `workers` acepta 1–3. `hud=0` oculta el HUD y `profile=0` desactiva
+333 y 444; `workers` acepta 1–3. `profile=0` desactiva
 el CSV; los logs de diagnóstico siguen activos en 00.05. El reloj previo se restaura al salir por
 START+SELECT. El log informa si Vita rechazó una frecuencia o un hilo.
 
@@ -83,3 +82,14 @@ La copia no está incluida en present_ms; consultar ambos para evaluar el coste
 total. El nuevo ZIP se genera dentro de cada entrega con el código vigente.
 
 [Auditoría de APIs e imágenes](STABILITY_AUDIT.md).
+
+## Frame Transfer: comparar CPU y DMA
+
+`balanced`, `single` y `battery` usan `copy_mode=2`: ocho patrones distintos
+verifican la copia DMA y miden ambas rutas; se elige la de menor tiempo total.
+`copy-cpu` fuerza CPU y `copy-dma` solicita DMA, manteniendo fallback por error.
+El ensayo usa el framebuffer inactivo antes de mostrar la pantalla inicial.
+No se publica un búfer hasta terminar la copia síncrona. El CSV añade
+`copy_mode` (0 CPU, 1 DMA) y `copy_rc`; `runtime.log` registra `copy_probe`.
+La prueba inicial no sustituye una sesión de hardware: comparar `copy_ms`,
+media/P95 de frame y parpadeo durante menú/tablero con idéntico recorrido.

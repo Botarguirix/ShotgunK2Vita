@@ -13,7 +13,8 @@ balanced: CPU 444 MHz, presentación 3 participantes.
 single: CPU 444 MHz, presentación 1 participante (comparación A/B).
 battery: CPU 333 MHz, presentación 2 participantes.
 
-SELECT+TRIÁNGULO muestra/oculta el HUD.
+00.09 retira el contador propio; las métricas siguen en CSV y logs.
+copy-cpu/copy-dma comparan transferencias; balanced selecciona al arrancar.
 Audio tiene su propio audio.log; el CSV no mide la carga de su hilo.
 
 00.08: excluye muestras detenidas (running=0 o runtime.log contiguo) e informa
