@@ -3,6 +3,8 @@
 Actualizado: 2026-10-10. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
 00.03 es corregir costes evitables, habilitar audio y medir la consola.
+El usuario reportó después error 0x8010113D. La entrega 00.04 corrige los PNG
+RGBA de LiveArea y separa las compilaciones/entregas en carpetas por versión.
 No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 
 | Fase | Estado | Evidencia / criterio de salida |
@@ -14,7 +16,7 @@ No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 | Herramienta de rendimiento | Implementada | HUD, CSV, informe HTML y presets; siguiente paso: recibir mediciones reales de Vita |
 | Música y efectos | Implementados; pendientes de escucha en Vita | MP3 por streaming, WAV PCM16, mezcla estéreo 44,1 kHz, hilo prioritario y dos buffers; prueba de 300 segundos con A→B, tres bucles y cinco efectos |
 | Controles adaptados | Implementados; pendientes de recorrido en Vita | Corregidos códigos PS en mayúsculas y liberación de sticks; gatillos y páginas separados con SELECT; guía gráfica incluida |
-| Icono y portada LiveArea | Preparados para VPK local | Icono 16×16 extraído de RT_ICON del EXE, ampliado a 128×128; portada y gate compuestos con atlas `title.png` del APK |
+| Icono y portada LiveArea | Formato corregido en 00.04; instalación pendiente | PNG indexados opacos de 8 bits, paleta de 256 colores; icono de RT_ICON del EXE y portada del atlas del APK |
 | Rendimiento jugable | Pendiente | Primero alcanzar 30 FPS estables en menú/tablero (≤33,3 ms); después evaluar 60 FPS (≤16,7 ms) |
 | Compatibilidad y calidad | Pendiente | Partidas completas, cartas, jefes, otros modos, saves y texto; evitar errores de API y verificar imagen/audio en consola |
 
@@ -51,7 +53,7 @@ ejecuta los binarios Android/Steam del juego.
 
 ## Próxima prueba en OLED
 
-Instalar 00.03 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
+Instalar 00.04 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
 el mismo recorrido con balanced y single. Para cada prueba conservar:
 `performance.csv`, `runtime.log` y `audio.log`. Confirmar FPS de menú/tablero,
 continuidad de música, efectos al navegar/disparar, controles y LiveArea.
@@ -74,5 +76,6 @@ SUGAR, importación de saves codificados, CRT y mods siguen pendientes de
 compatibilidad completa. Las pruebas de PC no sustituyen pruebas de consola.
 
 Referencias: [hilos VitaSDK](https://docs.vitasdk.org/group__SceThreadMgrUser.html),
+[formato PNG LiveArea y error 0x8010113D](https://gist.github.com/hammerill/64411eebf071b93396b7d310ba8d6776),
 [dr_mp3](https://github.com/mackron/dr_libs/blob/master/dr_mp3.h),
 [API pública SUGAR](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide).

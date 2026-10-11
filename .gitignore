@@ -1,4 +1,5 @@
 /build/
+/build-iterations/
 /build-host/
 /artifacts/
 third_party/*.tar.gz

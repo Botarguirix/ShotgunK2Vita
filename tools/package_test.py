@@ -4,16 +4,39 @@ import json
 import shutil
 import zipfile
 import argparse
+import re
 from pathlib import Path
+from validate_vpk import validate
 
 root = Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--vpk-only',action='store_true',help='Update the executable without rebuilding unchanged game data')
 args=parser.parse_args()
-out = root / 'artifacts'
-out.mkdir(exist_ok=True)
+iteration = re.search(r'VERSION "(\d{2}\.\d{2})"', (root/'CMakeLists.txt').read_text()).group(1)
+source_vpk = root/'build-iterations'/iteration/'ShotgunK2Vita-performance.vpk'
+validation = validate(source_vpk, require_art=(root/'private/livearea').is_dir())
+if validation['sfo'].get('APP_VER') != iteration:
+    raise ValueError('SFO version differs from source iteration')
+out = root / 'artifacts/iterations' / iteration
+# Never overwrite a previous delivery, even when packaging is retried.
+out.mkdir(parents=True, exist_ok=False)
 vpk = out / 'ShotgunK2Vita-performance.vpk'
-shutil.copy2(root / 'build' / vpk.name, vpk)
+shutil.copy2(source_vpk, vpk)
+(out/'validation.json').write_text(json.dumps(validation,indent=2),encoding='utf-8')
+snapshot = out/'source'
+snapshot.mkdir()
+for name in ('src', 'scripts', 'tools', 'docs', '.github'):
+    shutil.copytree(root/name, snapshot/name, ignore=shutil.ignore_patterns('__pycache__', '*_once.py'))
+for name in ('CMakeLists.txt', 'README.md', '.gitignore', '.gitattributes'):
+    shutil.copy2(root/name, snapshot/name)
+third_party = snapshot/'third_party'
+third_party.mkdir()
+shutil.copytree(root/'third_party/lua-5.1.5/src', third_party/'lua-5.1.5/src')
+for name in ('stb_truetype.h', 'dr_mp3.h'):
+    shutil.copy2(root/'third_party'/name, third_party/name)
+for name in ('performance.cfg', 'ShotgunK2Vita-PerformanceTool.zip'):
+    if (root/'artifacts'/name).is_file():
+        shutil.copy2(root/'artifacts'/name, out/name)
 with zipfile.ZipFile(vpk) as z:
     assert z.testzip() is None
     assert {'eboot.bin', 'sce_sys/param.sfo'} <= set(z.namelist())

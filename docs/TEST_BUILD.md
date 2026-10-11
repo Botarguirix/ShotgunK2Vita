@@ -1,11 +1,20 @@
-# VPK experimental 00.03
+# VPK experimental 00.04
 
-## Actualizar desde 00.02
+## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.04/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
+La versión 00.04 corrige el formato de estos PNG: índice de 8 bits, paleta
+de 256 colores y sin transparencia. El error 0x8010113D comunicado por el
+usuario coincide con el formato RGBA incompatible encontrado en 00.03.
+Las dimensiones, CRC, paleta, XML y SFO se comprueban antes de entregar el VPK.
+Esta corrección todavía necesita confirmar instalación en la consola.
+
+Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
+`00.03/`; la compilación nueva está en `build-iterations/00.04/`.
+No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
 carpeta `shotgunk2vita` a `ux0:data/`. Debe existir

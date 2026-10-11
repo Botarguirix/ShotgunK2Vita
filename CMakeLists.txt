@@ -50,5 +50,5 @@ if(EXISTS "${VITA_LIVEAREA_DIR}/livearea/contents/template.xml")
   endforeach()
 endif()
 vita_create_vpk(ShotgunK2Vita-performance.vpk SGKV00001 ShotgunK2Vita.self
-  VERSION "00.03" NAME "ShotgunK2Vita" ${VITA_LIVEAREA_FILES})
+  VERSION "00.04" NAME "ShotgunK2Vita" ${VITA_LIVEAREA_FILES})
 endif()

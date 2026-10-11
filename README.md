@@ -10,7 +10,7 @@ independiente, controles adaptados y un medidor de rendimiento. Falta verificar
 sus FPS, audio y estabilidad en hardware Vita.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
-- [Instalación del VPK 00.03](docs/TEST_BUILD.md)
+- [Instalación del VPK 00.04](docs/TEST_BUILD.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
 
@@ -27,7 +27,12 @@ export VITASDK=/home/bota/vitasdk
 bash scripts/build.sh
 ```
 
-Salida: `build/ShotgunK2Vita-performance.vpk`, título `SGKV00001`, versión 00.03.
+La corrección **00.04** convierte LiveArea a PNG indexados opacos de 8 bits,
+con paleta de 256 entradas, para resolver el error de instalación 0x8010113D.
+Conserva el runtime de rendimiento/audio de 00.03; pendiente de prueba en Vita.
+
+Salida: `build-iterations/00.04/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.04. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -49,7 +54,9 @@ Los datos de 00.02 siguen siendo válidos; no funciona copiando sólo `data.sgr`
 python3 tools/package_test.py
 ```
 
-Genera VPK, ZIP de datos limpios y hashes en `artifacts/`. Nunca reemplazar
+Genera VPK, copia del código/documentación, validación y hashes en
+`artifacts/iterations/00.04/`. Cada versión ocupa su propia carpeta y el
+empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.
 Para actualizar sólo el VPK: `python3 tools/package_test.py --vpk-only`.
 

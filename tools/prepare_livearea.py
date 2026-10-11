@@ -6,6 +6,18 @@ import struct
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
+def save_indexed(image, path):
+    # Vita's installer rejects truecolor RGBA LiveArea PNGs (0x8010113D).
+    # Composite transparency before quantization, preserve RGB colors, and
+    # force an 8-bit index with a full 256-entry PLTE (also required by pic0).
+    rgba = image.convert('RGBA')
+    opaque = Image.new('RGBA', image.size, (14, 18, 33, 255))
+    opaque.alpha_composite(rgba)
+    palette = opaque.convert('RGB').quantize(
+        colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    palette.info.clear()
+    palette.save(path, bits=8, optimize=False)
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
 parser.add_argument('game_data', type=Path)
@@ -64,7 +76,7 @@ contents.mkdir(parents=True, exist_ok=True)
 (out/'steam-extracted.ico').write_bytes(ico)
 original = Image.open(io.BytesIO(ico)).convert('RGBA')
 icon = original.resize((128, 128), Image.Resampling.NEAREST)
-icon.save(out/'icon0.png')
+save_indexed(icon, out/'icon0.png')
 
 # The Steam executable supplies its icon; the APK supplies original title art.
 logo_source = args.game_data/'assets/gfx/title.png'
@@ -85,13 +97,13 @@ draw = ImageDraw.Draw(bg)
 font = ImageFont.truetype(str(args.game_data/'assets/fonts/Terminus.ttf'),22)
 draw.rectangle((0,464,840,500),fill=(14,18,33))
 draw.text((420,481),'ShotgunK2Vita  |  Experimental',font=font,fill=(245,190,150),anchor='mm')
-bg.convert('RGBA').save(contents/'bg0.png')
-bg.resize((960, 544), Image.Resampling.NEAREST).convert('RGBA').save(out/'pic0.png')
+save_indexed(bg, contents/'bg0.png')
+save_indexed(bg.resize((960, 544), Image.Resampling.NEAREST), out/'pic0.png')
 startup = Image.new('RGBA', (280, 158), (14,18,33,255))
 small = logo.copy(); small.thumbnail((250, 100), Image.Resampling.NEAREST)
 startup.paste(small, ((280-small.width)//2, 10), small)
 ImageDraw.Draw(startup).text((140,130), 'INICIAR', font=font, fill=(245,190,150), anchor='mm')
-startup.save(contents/'startup.png')
+save_indexed(startup, contents/'startup.png')
 (contents/'template.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
 <livearea style="a1" format-ver="01.00" content-rev="1">
   <livearea-background><image>bg0.png</image></livearea-background>
