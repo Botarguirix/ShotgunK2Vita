@@ -63,7 +63,7 @@ int main(void){
  }
  FILE *log=sg_diag_open("runtime.log");
  if(!log)log=fopen("ux0:data/shotgunk2vita/runtime.log","a");
- if(log){setvbuf(log,NULL,_IOLBF,4096);fprintf(log,"build=performance-00.05 diagnostics_started=%d session=%s\n",diagnostic_started,sg_diag_directory());}
+ if(log){setvbuf(log,NULL,_IOLBF,4096);fprintf(log,"build=performance-%s diagnostics_started=%d session=%s\n",SG_BUILD_VERSION,diagnostic_started,sg_diag_directory());}
  Config config=settings();int old_clock=scePowerGetArmClockFrequency();int clock_rc=scePowerSetArmClockFrequency(config.cpu);
  int affinity_rc=sceKernelChangeThreadCpuAffinityMask(sceKernelGetThreadId(),SCE_KERNEL_CPU_MASK_USER_0);
  SceUID block=sceKernelAllocMemBlock("SGK framebuffer",SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,0x200000,NULL);

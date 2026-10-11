@@ -97,7 +97,7 @@ int sg_diag_start(const char *root) {
     if (mkdir(base,0777) && errno != EEXIST) return 0;
     int found=0;
     for(unsigned attempt=0;attempt<10000;attempt++) {
-        snprintf(directory,sizeof(directory),"%s/logs/00.05-%llu-%u",root,(unsigned long long)time(NULL),attempt);
+        snprintf(directory,sizeof(directory),"%s/logs/%s-%llu-%u",root,SG_BUILD_VERSION,(unsigned long long)time(NULL),attempt);
         if (!mkdir(directory,0777)) { found=1;break; }
         if (errno != EEXIST) break;
     }
@@ -109,7 +109,7 @@ int sg_diag_start(const char *root) {
     atomic_store(&audio_blocks,0); atomic_store(&audio_rc,0); atomic_store(&drops,0);
     for(unsigned i=0;i<3;i++)atomic_store(&workers[i],0);
     read_event=write_event=0; line=0; location[0]=0; memset(axes,0,sizeof(axes)); bytes_written=0;
-    fprintf(trace,"build=00.05 session_start=1 checkpoints_ms=250 clean_end_missing_means_unclean_or_forced_exit\n");
+    fprintf(trace,"build=%s session_start=1 checkpoints_ms=250 clean_end_missing_means_unclean_or_forced_exit\n",SG_BUILD_VERSION);
     sync_file(trace);
     snprintf(latest,sizeof(latest),"%s/logs/latest.txt",root);
     FILE *pointer=fopen(latest,"w");if(pointer){fprintf(pointer,"%s\n",directory);sync_file(pointer);fclose(pointer);}

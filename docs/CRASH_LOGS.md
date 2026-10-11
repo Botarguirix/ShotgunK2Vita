@@ -1,6 +1,6 @@
-# Recuperar diagnóstico de la iteración 00.05
+# Recuperar diagnóstico desde la iteración 00.05
 
-Instalar el VPK de `artifacts/iterations/00.05/` sobre el mismo título.
+Instalar el VPK actual de `artifacts/iterations/00.06/` sobre el mismo título.
 Conservar `ux0:data/shotgunk2vita/` y todas las partidas. No requiere plugins
 de diagnóstico ni copiar de nuevo los datos del juego.
 
@@ -8,7 +8,7 @@ de diagnóstico ni copiar de nuevo los datos del juego.
 
 1. Abrir VitaShell y entrar en `ux0:data/shotgunk2vita/logs/`.
 2. Copiar **toda la carpeta `logs`** al PC mediante USB o FTP. Cada ejecución
-   tiene su propia carpeta `00.05-<identificador>-<n>/`; `latest.txt` indica la
+   tiene su propia carpeta `<versión>-<identificador>-<n>/`; `latest.txt` indica la
    más reciente. Si abriste otra vez el juego, conservar también la anterior.
 3. Dentro de cada sesión están `runtime.log`, `audio.log`, `performance.csv`
    (si `profile=1`), `crash-trace.log` y `console.log` para stdout/stderr.
@@ -46,7 +46,7 @@ Estas escrituras añaden carga; comparar el rendimiento medido con esta versión
 ## Preparar un ZIP en PC (opcional)
 
 ```sh
-python3 tools/collect_diagnostics.py /ruta/logs diagnostico-00.05.zip
+python3 tools/collect_diagnostics.py /ruta/logs diagnostico-00.06.zip
 # Con un volcado nativo:
 python3 tools/collect_diagnostics.py /ruta/logs diagnostico-con-core.zip --dump /ruta/fallo.psp2dmp
 ```
@@ -57,7 +57,7 @@ ZIP existente. También funciona enviando un ZIP hecho desde el explorador.
 
 ## Símbolos para el análisis
 
-Cada entrega 00.05 incluye `debug/ShotgunK2Vita.elf` y `.map` correspondientes
+Cada entrega desde 00.05 incluye `debug/ShotgunK2Vita.elf` y `.map` correspondientes
 al VPK. Se conserva optimización Release y se añade información `-g`.
 Estos archivos quedan en PC: no instalarlos en Vita. Sirven para resolver
 direcciones del volcado hasta la función/línea del código de esa iteración.

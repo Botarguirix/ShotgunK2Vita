@@ -1,8 +1,8 @@
-# VPK experimental 00.05
+# VPK experimental 00.06
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.05/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.06/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -13,9 +13,14 @@ Las dimensiones, CRC, paleta, XML y SFO se comprueban antes de entregar el VPK.
 El usuario informa mejora considerable de FPS después de esa entrega,
 pero un crasheo. La versión 00.05 registra diagnósticos persistentes para
 localizar la causa; todavía no se considera corregido el crasheo.
+El log recuperado del runtime anterior muestra `gamepad.lua:1994: attempt to
+call global 'delta' (a nil value)`. La versión 00.06 registra `delta()` junto
+a `dt()` y conserva los logs de 00.05. La prueba de regresión reproduce el
+fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
+Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/` y `00.04/`; la compilación nueva está en `build-iterations/00.05/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.06/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su

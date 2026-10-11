@@ -9,6 +9,12 @@ Tras 00.04, el usuario informa una mejora considerable de FPS y un crasheo sin
 log recuperado. No hay aún valores exactos de FPS ni confirmación de audio.
 La iteración 00.05 añade logs por ejecución, checkpoints y símbolos para
 diagnosticar ese fallo; su causa sigue desconocida.
+Después se recibió el log del runtime anterior: `gamepad.lua:1994` llama a
+`delta()` al mantener una dirección, pero faltaba registrar ese nombre.
+00.06 añade el alias de `dt()`. El log muestra 21–29 FPS antes de la parada,
+núcleos 0/1/2 y CPU real 500 MHz (se solicitaron 444); no es una medición de
+todos los modos ni un resultado de 00.05. El rótulo `performance-00.03` era
+compartido por 00.03/00.04. Desde 00.06 el SFO, log y carpeta comparten versión.
 No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 
 | Fase | Estado | Evidencia / criterio de salida |
@@ -19,10 +25,11 @@ No se considera un port terminado ni se promete una tasa de FPS aún sin medir.
 | Reparto entre núcleos | Implementado; pendiente en Vita | Lua permanece en un hilo; presentación repartida entre tres participantes con semáforos; imágenes de uno/tres hilos iguales en PC |
 | Herramienta de rendimiento | Implementada | HUD, CSV, informe HTML y presets; siguiente paso: recibir mediciones reales de Vita |
 | Diagnóstico de crasheos 00.05 | Implementado; pruebas de PC | Sesiones conservadas, checkpoints ~250 ms, traceback Lua, ELF/map con símbolos; fixture de terminación abrupta y reapertura |
+| Parada al mantener pad 00.06 | Causa identificada; corrección en PC | Reproducido delta() nil en gamepad.lua:1994; registro del alias y regresión con cuatro direcciones de pad/stick |
 | Música y efectos | Implementados; pendientes de escucha en Vita | MP3 por streaming, WAV PCM16, mezcla estéreo 44,1 kHz, hilo prioritario y dos buffers; prueba de 300 segundos con A→B, tres bucles y cinco efectos |
 | Controles adaptados | Implementados; pendientes de recorrido en Vita | Corregidos códigos PS en mayúsculas y liberación de sticks; gatillos y páginas separados con SELECT; guía gráfica incluida |
 | Icono y portada LiveArea | Formato corregido en 00.04; usuario reporta ejecución tras la entrega | PNG indexados opacos de 8 bits, paleta de 256 colores; icono de RT_ICON del EXE y portada del atlas del APK |
-| Rendimiento jugable | Mejora subjetiva confirmada; medición pendiente | Usuario nota mejora considerable tras 00.04; falta CSV y comprobar 30 FPS estables (≤33,3 ms) |
+| Rendimiento jugable | Mejora confirmada en un log de Vita; estabilidad pendiente | 21–29 FPS antes del error del pad con CPU real 500 MHz; falta CSV de recorrido completo y 30 FPS estables |
 | Compatibilidad y calidad | Pendiente | Partidas completas, cartas, jefes, otros modos, saves y texto; evitar errores de API y verificar imagen/audio en consola |
 
 ## Qué cambió en 00.03
@@ -58,7 +65,7 @@ ejecuta los binarios Android/Steam del juego.
 
 ## Próxima prueba en OLED
 
-Instalar 00.05 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
+Instalar 00.06 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
 el mismo recorrido con balanced y single. Para cada prueba conservar:
 los archivos de cada sesión en `ux0:data/shotgunk2vita/logs/`, incluido
 `crash-trace.log`, y cualquier `.psp2dmp` reciente en `ux0:data/`.

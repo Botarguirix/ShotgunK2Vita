@@ -12,7 +12,7 @@ root = Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--vpk-only',action='store_true',help='Update the executable without rebuilding unchanged game data')
 args=parser.parse_args()
-iteration = re.search(r'VERSION "(\d{2}\.\d{2})"', (root/'CMakeLists.txt').read_text()).group(1)
+iteration = re.search(r'set\(SG_BUILD_VERSION "(\d{2}\.\d{2})"\)', (root/'CMakeLists.txt').read_text()).group(1)
 source_vpk = root/'build-iterations'/iteration/'ShotgunK2Vita-performance.vpk'
 validation = validate(source_vpk, require_art=(root/'private/livearea').is_dir())
 if validation['sfo'].get('APP_VER') != iteration:

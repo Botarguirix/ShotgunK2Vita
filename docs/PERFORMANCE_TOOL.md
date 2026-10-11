@@ -1,7 +1,7 @@
-# Herramienta de rendimiento · versión 00.05
+# Herramienta de rendimiento · versión 00.06
 
 Desde 00.05, el CSV se guarda en cada sesión:
-`ux0:data/shotgunk2vita/logs/00.05-<identificador>-<n>/performance.csv`.
+`ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
 Usar ese archivo para los informes; [recuperación de logs](CRASH_LOGS.md).
 El HUD muestra FPS y
 milisegundos de lógica (U), dibujo (D) y presentación (P). SELECT+TRIÁNGULO
@@ -10,7 +10,7 @@ no es un porcentaje de utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.05 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.06 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;

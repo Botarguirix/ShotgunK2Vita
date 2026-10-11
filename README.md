@@ -10,7 +10,7 @@ independiente, controles adaptados y un medidor de rendimiento. Falta verificar
 sus FPS, audio y estabilidad en hardware Vita.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
-- [Instalación del VPK 00.05](docs/TEST_BUILD.md)
+- [Instalación del VPK 00.06](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
@@ -33,9 +33,12 @@ con paleta de 256 entradas, para resolver el error de instalación 0x8010113D.
 El usuario confirma mejora considerable de FPS tras 00.04 y reporta un crasheo.
 **00.05** añade logs por sesión que no se sobrescriben, checkpoints ~250 ms,
 trazas de errores Lua y símbolos nativos. Falta diagnosticar la causa del crash.
+El log recibido identifica una llamada a `delta()` no registrada en la
+repetición del pad. **00.06** añade ese alias de `dt()`; reproduce el error
+anterior y verifica direcciones mantenidas de cruceta/stick en PC.
 
-Salida: `build-iterations/00.05/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.05. Cada versión usa una carpeta de compilación propia.
+Salida: `build-iterations/00.06/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.06. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -58,7 +61,7 @@ python3 tools/package_test.py
 ```
 
 Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.05/`. Incluye ELF/map con símbolos en `debug/`.
+`artifacts/iterations/00.06/`. Incluye ELF/map con símbolos en `debug/`.
 Cada versión ocupa su propia carpeta y el
 empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.

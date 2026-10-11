@@ -158,7 +158,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("afile",async_file);
     reg("encfile",encoded_file);reg("map",mapvalue);
     reg("syslang",syslang);
-    reg("dt",delta);reg("t",timestamp);reg("sugar_step",sugarstep);reg("lerp",lerp);
+    reg("dt",delta);reg("delta",delta);reg("t",timestamp);reg("sugar_step",sugarstep);reg("lerp",lerp);
     reg("round",roundvalue);
     reg("sgn",signvalue);
     reg("rm",remove_save);
