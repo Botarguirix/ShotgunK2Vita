@@ -99,6 +99,20 @@ static int async_file(lua_State *L){if(lua_toboolean(L,3))return luaL_error(L,"E
 static int encoded_file(lua_State *L){char path[2048];resolve(luaL_checkstring(L,1),path,sizeof(path));FILE *f=fopen(path,"rb");if(f){fclose(f);return luaL_error(L,"Legacy encoded save import is not supported");}lua_pushnil(L);return 1;}
 static int mapvalue(lua_State *L){double v=luaL_checknumber(L,1),a=luaL_checknumber(L,2),b=luaL_checknumber(L,3),c=luaL_checknumber(L,4),d=luaL_checknumber(L,5);lua_pushnumber(L,b==a?c:c+(v-a)*(d-c)/(b-a));return 1;}
 static int syslang(lua_State *L){lua_pushstring(L,"en");lua_pushstring(L,"US");return 2;}
+/* This APK's option sliders pass an OPTIONS descriptor, rather than bank
+ * coordinates. Bridge those descriptors to its current SET save structure.
+ * Numeric legacy banks remain unsupported instead of fabricating their data. */
+static int option_access(lua_State *L,int write){
+ if(strcmp(luaL_checkstring(L,1),"save")||!lua_istable(L,2)||luaL_checkint(L,3)!=0)
+  return luaL_error(L,"Legacy numeric banks are not supported; option descriptors only");
+ lua_getfield(L,2,"nid");const char *key=luaL_checkstring(L,-1);
+ lua_getglobal(L,"SET");if(!lua_istable(L,-1))return luaL_error(L,"Options SET not initialized");
+ if(write){lua_pushvalue(L,4);lua_setfield(L,-2,key);return 0;}
+ lua_getfield(L,-1,key);if(lua_isnil(L,-1)){lua_pop(L,1);lua_getfield(L,2,"def");}
+ return 1;
+}
+static int option_get(lua_State *L){return option_access(L,0);}
+static int option_set(lua_State *L){luaL_checkany(L,4);return option_access(L,1);}
 static int delta(lua_State *L){lua_pushnumber(L,1.0/60);return 1;}
 static int sugarstep(lua_State *L){(void)L;frame_time+=1.0/60;return 0;}
 static int lerp(lua_State *L){double a=luaL_checknumber(L,1),b=luaL_checknumber(L,2),c=luaL_checknumber(L,3);lua_pushnumber(L,a+(b-a)*c);return 1;}
@@ -158,6 +172,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("afile",async_file);
     reg("encfile",encoded_file);reg("map",mapvalue);
     reg("syslang",syslang);
+    reg("bget",option_get);reg("bset",option_set);
     reg("dt",delta);reg("delta",delta);reg("t",timestamp);reg("sugar_step",sugarstep);reg("lerp",lerp);
     reg("round",roundvalue);
     reg("sgn",signvalue);

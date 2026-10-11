@@ -1,8 +1,8 @@
-# VPK experimental 00.07
+# VPK experimental 00.08
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.07/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.08/ShotgunK2Vita-performance.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -14,13 +14,13 @@ El usuario informa mejora considerable de FPS después de esa entrega,
 pero un crasheo. La versión 00.05 registra diagnósticos persistentes para
 localizar la causa; todavía no se considera corregido el crasheo.
 El log recuperado del runtime anterior muestra `gamepad.lua:1994: attempt to
-call global 'delta' (a nil value)`. La versión 00.07 registra `delta()` junto
+call global 'delta' (a nil value)`. La versión 00.08 registra `delta()` junto
 a `dt()` y conserva los logs de 00.05. La prueba de regresión reproduce el
 fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.07/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.08/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -31,6 +31,11 @@ junto a los PNG. El ZIP se prepara sin saves de pruebas de PC.
 00.07 corrige `trifill()` ausente al inspeccionar piezas con el stick derecho.
 La regresión de 5.400 frames pasa en PC; falta comprobarla en Vita.
 [Detalle del diagnóstico](STATUS_ITERATION07.md).
+
+00.08 añade disparo con sprites girados, puente SET para sliders, doble
+framebuffer y composición en RAM. Probar R/recarga, opciones y parpadeo con
+y sin HUD. No se considera estable hasta confirmar hardware y más partidas.
+[Diagnóstico y límites](STATUS_ITERATION08.md).
 
 ## Controles
 

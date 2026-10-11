@@ -5,6 +5,7 @@ import html
 import json
 import math
 import statistics
+import re
 from pathlib import Path
 
 PRESETS = {
@@ -18,9 +19,16 @@ def read_samples(path, skip):
     with path.open(encoding='utf-8-sig', newline='') as f:
         raw = list(csv.DictReader(f))
     rows = []
+    stop_frame = None
+    runtime = path.with_name('runtime.log')
+    if runtime.is_file():
+        stopped = re.search(r'native_frames=(\d+) running=0', runtime.read_text(encoding='utf-8', errors='replace'))
+        if stopped: stop_frame = int(stopped.group(1))
     for r in raw:
         try:
             r = {k: float(v) for k, v in r.items()}
+            if r.get('running', 1) == 0 or (stop_frame is not None and r.get('frame', 0) >= stop_frame):
+                continue
             if not all(math.isfinite(r[k]) and r[k] >= 0 for k in (*STAGES, 'frame_ms')):
                 continue
             if r['frame_ms'] > 0: rows.append(r)
@@ -35,6 +43,7 @@ def summary(rows):
     return {'samples': len(rows), 'fps': 1000/statistics.mean(frames),
         'frame_mean_ms': statistics.mean(frames), 'frame_p95_ms': frames[math.ceil(.95*len(frames))-1],
         'stages_ms': {k: statistics.mean(r[k] for r in rows) for k in STAGES},
+        'copy_mean_ms': statistics.mean(r.get('copy_ms', 0) for r in rows),
         'glyph_misses': sum(r.get('glyph_misses', 0) for r in rows),
         'render_participants_ms': {k: statistics.mean(r[k] for r in rows) for k in ('render0_ms','render1_ms','render2_ms') if all(k in r for r in rows)},
         'workers': sorted(set(int(r.get('workers', 1)) for r in rows)),
@@ -46,6 +55,7 @@ def report(args):
     baseline = summary(read_samples(args.baseline, args.skip_first)) if args.baseline else None
     name = html.escape(args.csv.name)
     table = ''.join(f'<tr><td>{html.escape(k)}</td><td>{v:.3f} ms</td></tr>' for k, v in stats['stages_ms'].items())
+    table += f'<tr><td>Copia RAM → pantalla (00.08+)</td><td>{stats["copy_mean_ms"]:.3f} ms</td></tr>'
     if stats['render_participants_ms']:
         table += '<tr><td colspan="2">Trabajo de filas por participante (en paralelo; no sumar a frame_ms)</td></tr>'
         table += ''.join(f'<tr><td>{k}</td><td>{v:.3f} ms</td></tr>' for k,v in stats['render_participants_ms'].items())
@@ -67,7 +77,7 @@ def report(args):
 <section><p class="big">FPS_VALUE FPS · MEAN_VALUE ms por fotograma</p><p>P95: P95_VALUE ms · SAMPLES_VALUE muestras</p>COMPARE_VALUE</section>
 <section><h2>Tiempo medio por etapa</h2><table>TABLE_VALUE</table><p>NOTE_VALUE</p><p>La espera incluye sincronización con la pantalla; no es trabajo del renderizador. El tiempo total también incluye entrada, HUD y otras tareas.</p></section>
 <section><h2>Evolución de tiempos</h2><p id="checks"></p><canvas id="plot" width="1000" height="340"></canvas><small>Medias por intervalo y pico de tiempo total. Línea discontinua: presupuesto de 16,67 ms (60 FPS).</small></section>
-<section><p>Workers: WORKERS_VALUE · CPU: CPU_VALUE MHz · Letras rasterizadas: MISSES_VALUE</p><p>Probar balanced y single durante el mismo recorrido. Copiar performance.csv antes de cada reinicio: se reemplaza al abrir el juego.</p><p>Una medición de PC no predice FPS en Vita. El audio tiene su propio registro audio.log con bloques tardíos y errores de salida.</p></section>
+<section><p>Workers: WORKERS_VALUE · CPU: CPU_VALUE MHz · Letras rasterizadas: MISSES_VALUE</p><p>Probar balanced y single durante el mismo recorrido. Conservar la carpeta completa de cada sesión; las ejecuciones anteriores no se sobrescriben. Las muestras detenidas se excluyen si hay running o runtime.log contiguo.</p><p>Una medición de PC no predice FPS en Vita. El audio tiene su propio registro audio.log con bloques tardíos y errores de salida.</p></section>
 <script>const data=CHART_DATA, names=['Lua/update','Dibujo','Presentación','Espera','Pico total'],colors=['#72b9ff','#ff7289','#9ce1ac','#bbb0dc','#ffd0ad'];
 let enabled=names.map(()=>true);document.getElementById('checks').innerHTML=names.map((n,i)=>`<label style="color:${colors[i]}"><input type="checkbox" checked onchange="enabled[${i}]=this.checked;draw()">${n}</label>`).join('');
 function draw(){const c=document.getElementById('plot'),g=c.getContext('2d'),w=c.width,h=c.height;g.clearRect(0,0,w,h);const limit=Math.max(20,...data.flatMap(r=>r.slice(1).filter((_,i)=>enabled[i])));g.font='14px system-ui';g.fillStyle='#bcb0ca';

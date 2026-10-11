@@ -12,8 +12,8 @@ Se conserva la numeración SFO 00.NN y las carpetas ya usadas en ShotgunK2Vita.
    incrementar `SG_BUILD_VERSION` en CMake; comprobar que no exista ya su
    carpeta de entrega. Los cambios de documentación no requieren otro VPK.
 3. Implementar y comprobar. En Linux/WSL ejecutar
-   `bash scripts/check_iteration.sh`: triángulos, recorrido de stick derecho,
-   repetición del pad y persistencia de logs con ASan/UBSan. Cada ejecución
+   `bash scripts/check_iteration.sh`: triángulos, stick derecho, disparo/recarga,
+   opciones, presentación, repetición del pad y logs con ASan/UBSan. Cada ejecución
    conserva logs en una carpeta única. Añadir pruebas específicas cuando sean
    necesarias; los datos privados preparados deben existir en `private/game`.
 4. Documentar en `docs/STATUS_ITERATIONNN.md`: evidencia recibida, causa,

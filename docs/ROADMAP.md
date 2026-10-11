@@ -1,7 +1,7 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION07.md](INFORME_ROADMAP_ITERACION07.md).
+Informe actual: [INFORME_ROADMAP_ITERACION08.md](INFORME_ROADMAP_ITERACION08.md).
 
 Actualizado: 2026-10-10. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
@@ -76,9 +76,19 @@ Se excluye la pantalla detenida y no se extrapola una mejora de 00.07 en Vita.
 El audio no pierde bloques de cola, pero registra dos bloques tardíos y no
 confirma salida audible. [Diagnóstico completo](STATUS_ITERATION07.md).
 
+## Estado de 00.08
+
+Los logs de 00.07 identifican aspr ausente al disparar y bget ausente en
+opciones. 00.08 corrige esas rutas, añade doble framebuffer y composición
+en RAM, y optimiza máscaras de texto. Pasan 6000 frames de combate en PC
+y la batería ampliada con sanitizadores. La referencia activa de 00.07
+es 19,53 FPS; mejora de FPS y parpadeo de 00.08 pendientes en hardware.
+Persistencia, más cartas/pisos y APIs incompletas impiden declarar el port
+estable. [Informe y criterios](INFORME_ROADMAP_ITERACION08.md).
+
 ## Próxima prueba en OLED
 
-Instalar 00.07 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
+Instalar 00.08 sobre el mismo título `SGKV00001`, conservar datos/saves y hacer
 el mismo recorrido con balanced y single. Para cada prueba conservar:
 los archivos de cada sesión en `ux0:data/shotgunk2vita/logs/`, incluido
 `crash-trace.log`, y cualquier `.psp2dmp` reciente en `ux0:data/`.

@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION07.md](INFORME_ROADMAP_ITERACION07.md).
+Informe actual: [INFORME_ROADMAP_ITERACION08.md](INFORME_ROADMAP_ITERACION08.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -11,6 +11,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION07.md](INFORME_ROADMAP_ITERACION07.md)
 | 00.05 | `artifacts/iterations/00.05/` | Logs persistentes por ejecución, traceback Lua y símbolos nativos; pendiente de prueba en Vita |
 | 00.06 | `artifacts/iterations/00.06/` | Corregido delta() ausente al mantener pad; reproducción anterior y regresión en PC |
 | 00.07 | `artifacts/iterations/00.07/` | Corregido trifill() ausente con stick derecho; 5.400 frames y sanitizadores en PC; pendiente en Vita |
+| 00.08 | `artifacts/iterations/00.08/` | Disparo aspr y opciones corregidos; doble búfer/RAM y texto optimizado; regresiones PC; Vita pendiente |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.

@@ -1,6 +1,6 @@
 # Recuperar diagnóstico desde la iteración 00.05
 
-Instalar el VPK actual de `artifacts/iterations/00.07/` sobre el mismo título.
+Instalar el VPK actual de `artifacts/iterations/00.08/` sobre el mismo título.
 Conservar `ux0:data/shotgunk2vita/` y todas las partidas. No requiere plugins
 de diagnóstico ni copiar de nuevo los datos del juego.
 

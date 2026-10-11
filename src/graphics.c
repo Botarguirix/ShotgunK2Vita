@@ -58,7 +58,7 @@ static int newsrf(lua_State *L){int id;if(lua_isnumber(L,1)){char key[64];snprin
 static int palette(lua_State *L){if(lua_gettop(L)){if(lua_istable(L,1)){int n=(int)lua_objlen(L,1);for(int i=0;i<n&&i<256;i++){lua_rawgeti(L,1,i+1);unsigned c=(unsigned)lua_tointeger(L,-1);lua_pop(L,1);colors[i]=0xff000000u|((c>>16)&255)|(c&0xff00)|((c&255)<<16);}}else load(L,luaL_checkstring(L,1),"_palette",1);}lua_newtable(L);for(int i=0;i<256;i++){unsigned c=colors[i];lua_pushinteger(L,((c&255)<<16)|(c&0xff00)|((c>>16)&255));lua_rawseti(L,-2,i+1);}return 1;}
 static int target(lua_State *L){dst=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):0;return 0;}
 static int spritesheet(lua_State *L){if(lua_gettop(L))sheet=locate(L,luaL_checkstring(L,1));lua_pushstring(L,surfaces[sheet].key);return 1;}
-static int sprgrid(lua_State *L){gridw=luaL_optint(L,1,16);gridh=luaL_optint(L,2,gridw);return 0;}
+static int sprgrid(lua_State *L){int w=luaL_optint(L,1,16),h=luaL_optint(L,2,w);if(w<1||h<1||w>4096||h>4096)return luaL_error(L,"Invalid sprite grid");gridw=w;gridh=h;return 0;}
 static int camera(lua_State *L){camx=luaL_optint(L,1,0);camy=luaL_optint(L,2,0);return 0;}
 static int tcamera(lua_State *L){camx+=luaL_checkint(L,1);camy+=luaL_checkint(L,2);return 0;}
 static int cls(lua_State *L){memset(surfaces[dst].p,luaL_optint(L,1,0)&255,(size_t)surfaces[dst].w*surfaces[dst].h);return 0;}
@@ -167,6 +167,28 @@ static int asspr(lua_State *L){
  pattern=saved;return 0;
 }
 static int sspr(lua_State *L){int sw=luaL_checkint(L,3),sh=luaL_checkint(L,4);blit(luaL_checkint(L,1),luaL_checkint(L,2),sw,sh,luaL_checkint(L,5),luaL_checkint(L,6),luaL_optint(L,7,sw),luaL_optint(L,8,sh),lua_toboolean(L,9),lua_toboolean(L,10));return 0;}
+static int aspr(lua_State *L){
+ int n=luaL_checkint(L,1),cols=surfaces[sheet].w/gridw;if(!cols)return 0;
+ double x=luaL_checknumber(L,2),y=luaL_checknumber(L,3),angle=luaL_checknumber(L,4);
+ int w=(int)(luaL_optnumber(L,5,1)*gridw),h=(int)(luaL_optnumber(L,6,1)*gridh);
+ double zx=luaL_optnumber(L,7,1),zy=luaL_optnumber(L,8,1),ax=luaL_optnumber(L,9,w*.5),ay=luaL_optnumber(L,10,h*.5);
+ lua_settop(L,0);lua_pushinteger(L,(n%cols)*gridw);lua_pushinteger(L,(n/cols)*gridh);
+ lua_pushinteger(L,w);lua_pushinteger(L,h);lua_pushnumber(L,x);lua_pushnumber(L,y);lua_pushnumber(L,angle);
+ lua_pushnumber(L,zx);lua_pushnumber(L,zy);lua_pushnumber(L,ax);lua_pushnumber(L,ay);
+ return asspr(L);
+}
+static int circ(lua_State *L){
+ double x=luaL_checknumber(L,1),y=luaL_checknumber(L,2),r=luaL_checknumber(L,3);int c=luaL_optint(L,4,ink);
+ if(!isfinite(x)||!isfinite(y)||!isfinite(r)||fabs(x)>1e9||fabs(y)>1e9||r>1e6)return luaL_error(L,"Invalid circle coordinates");
+ if(r<0)return 0;
+ Surface *s=&surfaces[dst];double cx=x-camx,cy=y-camy;
+ double l=fmax(0,fmax(clipx,ceil(cx-r-.5))),rr=fmin(s->w-1,fmin((double)clipx+clipw-1,floor(cx+r+.5)));
+ double tt=fmax(0,fmax(clipy,ceil(cy-r-.5))),bb=fmin(s->h-1,fmin((double)clipy+cliph-1,floor(cy+r+.5)));
+ if(l>rr||tt>bb)return 0;int left=(int)l,right=(int)rr,top=(int)tt,bottom=(int)bb;
+ double inner=fmax(0,r-.5),outer=r+.5;
+ for(int yy=top;yy<=bottom;yy++)for(int xx=left;xx<=right;xx++){double d=(xx-cx)*(xx-cx)+(yy-cy)*(yy-cy);if(d>=inner*inner&&d<=outer*outer)triangle_pixel(xx,yy,c);}
+ return 0;
+}
 static int spr(lua_State *L){int n=luaL_checkint(L,1),cols=surfaces[sheet].w/gridw;if(!cols)return 0;int w=luaL_optint(L,4,1)*gridw,h=luaL_optint(L,5,1)*gridh;blit((n%cols)*gridw,(n/cols)*gridh,w,h,luaL_checkint(L,2),luaL_checkint(L,3),w,h,lua_toboolean(L,6),lua_toboolean(L,7));return 0;}
 static int sget(lua_State *L){Surface *s=&surfaces[sheet];int x=luaL_checkint(L,1),y=luaL_checkint(L,2);lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
 static int size(lua_State *L){int id=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):dst;lua_pushinteger(L,surfaces[id].w);lua_pushinteger(L,surfaces[id].h);return 2;}
@@ -191,7 +213,20 @@ static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=lua
 static int selectfont(lua_State *L){const char *key=luaL_optstring(L,1,"default");for(int i=0;i<fontcount;i++)if(!strcmp(fonts[i].key,key)){current_font=i;return 0;}return luaL_error(L,"Unknown font %s",key);}
 static unsigned codepoint(const unsigned char **text){const unsigned char *p=*text;unsigned c=*p++;if(c>=0xc0&&c<0xe0&&*p)c=((c&31)<<6)|(*p++&63);else if(c>=0xe0&&c<0xf0&&p[0]&&p[1]){c=((c&15)<<12)|((p[0]&63)<<6)|(p[1]&63);p+=2;}*text=p;return c;}
 static int advance(Font *f,unsigned c){if(c==' ')return f->space;if(f->ttf)return cached_glyph(f,c)->advance;for(int i=0;i<f->glyphs;i++)if(f->cp[i]==c)return f->gw[i]+1;return 4;}
-static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[current_font];int start=x;const unsigned char *p=(const unsigned char *)str;while(*p){unsigned cp=codepoint(&p);if(cp=='\n'){x=start;y+=f->h;continue;}if(draw&&cp!=' '){if(f->ttf){Glyph *g=cached_glyph(f,cp);if(g->p)for(int yy=0;yy<g->h;yy++)for(int xx=0;xx<g->w;xx++)if(g->p[yy*g->w+xx]>=100)dot(x+g->ox+xx,y+f->h+g->oy+yy+f->dy,c);}else{Surface *s=&surfaces[f->surface];for(int g=0;g<f->glyphs;g++)if(f->cp[g]==cp){for(int yy=0;yy<s->h-1;yy++)for(int xx=0;xx<f->gw[g];xx++)if(s->p[yy*s->w+f->gx[g]+xx])dot(x+xx,y+yy,c);break;}}}x+=advance(f,cp);}return x;}
+static void stamp_mask(const unsigned char *mask,int stride,int w,int h,int x,int y,int threshold,int c){
+ Surface *s=&surfaces[dst];x-=camx;y-=camy;
+ int x0=0,y0=0,x1=w,y1=h;
+ int left=clipx>0?clipx:0,top=clipy>0?clipy:0;
+ int right=clipx+clipw<s->w?clipx+clipw:s->w,bottom=clipy+cliph<s->h?clipy+cliph:s->h;
+ if(x<left)x0=left-x;if(y<top)y0=top-y;if(x+x1>right)x1=right-x;if(y+y1>bottom)y1=bottom-y;
+ if(x0>=x1||y0>=y1)return;
+ int value=mapping[c&255],fast=!pattern&&blend_identity;
+ for(int yy=y0;yy<y1;yy++){
+  const unsigned char *source=mask+(size_t)yy*stride;unsigned char *row=s->p+(size_t)(y+yy)*s->w+(x+x0);
+  for(int xx=x0;xx<x1;xx++,row++)if(source[xx]>=threshold){if(fast)*row=value;else triangle_pixel(x+xx,y+yy,c);}
+ }
+}
+static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[current_font];int start=x;const unsigned char *p=(const unsigned char *)str;while(*p){unsigned cp=codepoint(&p);if(cp=='\n'){x=start;y+=f->h;continue;}if(draw&&cp!=' '){if(f->ttf){Glyph *g=cached_glyph(f,cp);if(g->p)stamp_mask(g->p,g->w,g->w,g->h,x+g->ox,y+f->h+g->oy+f->dy,100,c);}else{Surface *s=&surfaces[f->surface];for(int g=0;g<f->glyphs;g++)if(f->cp[g]==cp){stamp_mask(s->p+f->gx[g],s->w,f->gw[g],s->h-1,x,y,1,c);break;}}}x+=advance(f,cp);}return x;}
 static int text(lua_State *L){const char *str=luaL_checkstring(L,1);if(lua_gettop(L)<3){fprintf(stdout,"%s\n",str);lua_pushinteger(L,0);return 1;}int x=luaL_checkint(L,2),y=luaL_checkint(L,3),c=luaL_optint(L,4,ink);lua_pushinteger(L,drawtext(str,x,y,c,1));return 1;}
 static int width(lua_State *L){lua_pushinteger(L,drawtext(luaL_checkstring(L,1),0,0,ink,0));return 1;}
 static int bprint(lua_State *L){const char *str=luaL_checkstring(L,1);int start=luaL_checkint(L,2),x=start,y=luaL_checkint(L,3),w=luaL_checkint(L,4),c=luaL_optint(L,5,ink);const unsigned char *p=(const unsigned char *)str;while(*p){const unsigned char *begin=p;unsigned cp=codepoint(&p);int a=advance(&fonts[current_font],cp);if(cp=='\n'||x+a>start+w){x=start;y+=fonts[current_font].h;if(cp=='\n')continue;}char glyph[8]={0};size_t n=(size_t)(p-begin);if(n<sizeof(glyph))memcpy(glyph,begin,n);drawtext(glyph,x,y,c,1);x+=a;}lua_pushinteger(L,y+fonts[current_font].h);return 1;}
@@ -206,6 +241,7 @@ void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(d
  reg(L,"sfillp",sfillp);reg(L,"bprint",bprint);
  reg(L,"pget",pget);reg(L,"blend",blend);
  reg(L,"trifill",trifill);reg(L,"tri",tri);
+ reg(L,"aspr",aspr);reg(L,"circ",circ);
  /* Default font uses the actual shipped TTF before the game selects its font. */
  lua_pushcfunction(L,newfont);lua_pushstring(L,"assets/fonts/Terminus.ttf");lua_pushinteger(L,12);lua_pushstring(L,"default");lua_call(L,3,0);
 }

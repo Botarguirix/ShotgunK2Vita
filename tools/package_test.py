@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from validate_vpk import validate
 from iteration_manifest import finalize
+from package_performance_tool import package as package_performance
 
 root = Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
@@ -39,9 +40,10 @@ debug = out/'debug'
 debug.mkdir()
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita', debug/'ShotgunK2Vita.elf')
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita.map', debug/'ShotgunK2Vita.map')
-for name in ('performance.cfg', 'ShotgunK2Vita-PerformanceTool.zip'):
+for name in ('performance.cfg',):
     if (root/'artifacts'/name).is_file():
         shutil.copy2(root/'artifacts'/name, out/name)
+package_performance(out/'ShotgunK2Vita-PerformanceTool.zip')
 diagnostic_tool=out/'ShotgunK2Vita-DiagnosticsTool.zip'
 with zipfile.ZipFile(diagnostic_tool,'w',zipfile.ZIP_DEFLATED) as z:
     z.write(root/'tools/collect_diagnostics.py','collect_diagnostics.py')

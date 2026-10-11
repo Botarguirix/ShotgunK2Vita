@@ -4,15 +4,16 @@ Port experimental de Shotgun King a PS Vita. El runtime propio interpreta los
 scripts Lua del APK con Lua 5.1 y una implementación parcial de la API SUGAR.
 El usuario confirmó el arranque de 00.02 en Vita OLED a 1–3 FPS y sin sonido.
 
-La versión **00.03** añade cache de glifos, recorte de dibujo, escalado por
-filas, presentación con hasta tres participantes, audio MP3/WAV en un hilo
-independiente, controles adaptados y un medidor de rendimiento. Falta verificar
-sus FPS, audio y estabilidad en hardware Vita.
+La versión actual **00.08** corrige rutas de disparo/opciones y añade doble
+framebuffer, composición en RAM y texto optimizado. Conserva presentación con
+hasta tres participantes, audio MP3/WAV, controles adaptados y diagnósticos.
+El usuario registra ~19,53 FPS antes del fallo de 00.07; rendimiento y parpadeo
+de 00.08 deben comprobarse en Vita. El port aún no se considera estable.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
 - [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
-- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION07.md)
-- [Instalación del VPK 00.07](docs/TEST_BUILD.md)
+- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION08.md)
+- [Instalación del VPK 00.08](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)
@@ -43,8 +44,13 @@ anterior y verifica direcciones mantenidas de cruceta/stick en PC.
 el stick derecho. El recorrido de 5.400 frames pasa en PC con sanitizadores;
 la validación en Vita sigue pendiente. [Diagnóstico y pruebas](docs/STATUS_ITERATION07.md).
 
-Salida: `build-iterations/00.07/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.07. Cada versión usa una carpeta de compilación propia.
+**00.08** corrige `aspr()` ausente al disparar y los sliders de opciones,
+añade doble framebuffer con composición en RAM y optimiza dibujo de texto.
+Pasan 6000 frames de disparo/recarga en PC; FPS y parpadeo deben verificarse
+en Vita. [Diagnóstico](docs/STATUS_ITERATION08.md) y [auditoría](docs/STABILITY_AUDIT.md).
+
+Salida: `build-iterations/00.08/ShotgunK2Vita-performance.vpk`, título
+`SGKV00001`, versión 00.08. Cada versión usa una carpeta de compilación propia.
 El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
 
 ## Preparar datos e imágenes de tu copia
@@ -67,7 +73,7 @@ python3 tools/package_test.py
 ```
 
 Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.07/`. Incluye ELF/map con símbolos en `debug/`.
+`artifacts/iterations/00.08/`. Incluye ELF/map con símbolos en `debug/`.
 Cada versión ocupa su propia carpeta y el
 empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
 `save/` de la consola al actualizar únicamente el ejecutable.

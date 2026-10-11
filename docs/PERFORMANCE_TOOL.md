@@ -1,4 +1,4 @@
-# Herramienta de rendimiento · versión 00.07
+# Herramienta de rendimiento · versión 00.08
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
@@ -10,7 +10,7 @@ no es un porcentaje de utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.07 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.08 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
@@ -73,3 +73,13 @@ superó los 46,44 ms disponibles. El CSV no mide la carga de CPU del audio.
 
 Las pruebas en PC se marcan como tales: sus FPS derivados son una medida
 del tiempo de trabajo sin VSync; no son FPS medidos ni predichos para Vita.
+
+## Cambios de 00.08
+
+`copy_ms` mide la copia RAM a pantalla; `running` identifica frames activos.
+El informe excluye frames detenidos. Para CSV antiguos, mantener `runtime.log`
+en la misma carpeta: el primer checkpoint running=0 es un límite aproximado.
+La copia no está incluida en present_ms; consultar ambos para evaluar el coste
+total. El nuevo ZIP se genera dentro de cada entrega con el código vigente.
+
+[Auditoría de APIs e imágenes](STABILITY_AUDIT.md).
