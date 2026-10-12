@@ -40,11 +40,24 @@ def read_samples(path, skip):
     if not rows: raise ValueError('No valid samples remain; reduce --skip-first')
     return rows
 
+def entity_summary(rows):
+    result={}
+    for k in ('entities','entity_updates','entity_draws','palette_resets','palette_suppressed','sprite_calls','blit_pixels'):
+        if not any(k in r for r in rows): continue
+        values=[r.get(k,0) for r in rows]; draw=[r['draw_ms'] for r in rows]
+        corr=None
+        if len(rows)>1 and statistics.pstdev(values)>0 and statistics.pstdev(draw)>0:
+            mx,my=statistics.mean(values),statistics.mean(draw)
+            corr=sum((a-mx)*(b-my) for a,b in zip(values,draw))/(len(rows)*statistics.pstdev(values)*statistics.pstdev(draw))
+        result[k]={'mean':statistics.mean(values),'max':max(values),'draw_correlation':corr}
+    return result
+
 def summary(rows):
     frames = sorted(r['frame_ms'] for r in rows)
     return {'samples': len(rows), 'fps': 1000/statistics.mean(frames),
         'frame_mean_ms': statistics.mean(frames), 'frame_p95_ms': frames[math.ceil(.95*len(frames))-1],
         'stages_ms': {k: statistics.mean(r[k] for r in rows) for k in STAGES},
+        'entity_metrics': entity_summary(rows),
         'renderers': sorted(set(int(r.get('renderer',0)) for r in rows)),
         'gpu_submit_mean_ms': statistics.mean(r.get('gpu_submit_ms',0) for r in rows),
         'copy_mean_ms': statistics.mean(r.get('copy_ms', 0) for r in rows),
@@ -74,6 +87,11 @@ def report(args):
     if stats['render_participants_ms']:
         table += '<tr><td colspan="2">Trabajo de filas por participante (en paralelo; no sumar a frame_ms)</td></tr>'
         table += ''.join(f'<tr><td>{k}</td><td>{v:.3f} ms</td></tr>' for k,v in stats['render_participants_ms'].items())
+    for k,v in stats['entity_metrics'].items():
+        corr='sin variación suficiente' if v['draw_correlation'] is None else f'{v["draw_correlation"]:.3f}'
+        table += f'<tr><td>{html.escape(k)}</td><td>media {v["mean"]:.1f}; máximo {v["max"]:.0f}; correlación con draw_ms: {corr}</td></tr>'
+    if 'entities' in stats['entity_metrics']:
+        table += '<tr><td colspan="2">Las llamadas de dibujo incluyen callbacks que omiten entidades invisibles. Correlación no demuestra causalidad; comparar la misma escena.</td></tr>'
     dominant = max(STAGES[:3], key=lambda k: stats['stages_ms'][k])
     notes = {
         'update_ms': 'La lógica y los callbacks Lua concentran el mayor tiempo de trabajo. Más hilos de presentación no paralelizan ese estado Lua.',

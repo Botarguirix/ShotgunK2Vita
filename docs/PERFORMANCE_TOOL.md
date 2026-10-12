@@ -1,4 +1,4 @@
-# Herramienta de rendimiento · versión 00.12
+# Herramienta de rendimiento · versión 00.13
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
@@ -9,7 +9,7 @@ CSV/logs. Los participantes de presentación no indican utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.12 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.13 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
 3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
@@ -118,3 +118,14 @@ Repetir misma escena/relojes, comparar media/P95 y excluir running=0.
 
 00.12 mantiene el esquema GPU/CPU y optimiza present_ms. Comparar misma partida,
 relojes y ventana; el benchmark PC no predice el incremento de FPS en Vita.
+
+## Entidades00.13
+
+entities es tamaño de lista raíz; entity_updates/entity_draws son llamadas al
+callback (hijos y listas extra pueden superar entities; invisibles también
+pueden recibir la llamada). palette_resets cuenta resets y palette_suppressed
+la ruta de pal Lua sustituido durante pausa/otros. sprite_calls cuenta llamadas
+blit, no tiles; blit_pixels mide área procesada. No reducir entidades sin medir.
+El informe da media/máximo y correlación de estos contadores con draw_ms.
+Correlación no demuestra causalidad; mezclar menú/partida puede ocultar el coste.
+Comparar misma escena/relojes, media/P95 y excluir running=0.

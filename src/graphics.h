@@ -8,3 +8,6 @@ void sg_present(uint32_t *pixels,int width,int height);
 uint32_t sg_present_background(void);
 /* Surfaces and palette must remain immutable until all row jobs finish. */
 void sg_present_rows(uint32_t *pixels,int width,int height,int first,int last);
+
+/* Install after game bootstrap; preserves pause palette suppression. */
+void sg_graphics_fast_api(lua_State *L);

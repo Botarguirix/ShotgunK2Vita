@@ -4,15 +4,16 @@ Port experimental de Shotgun King a PS Vita. El runtime propio interpreta los
 scripts Lua del APK con Lua 5.1 y una implementación parcial de la API SUGAR.
 El usuario confirmó el arranque de 00.02 en Vita OLED a 1–3 FPS y sin sonido.
 
-La versión actual **00.12 — Frame Budget** optimiza la composición lógica,
-retira enlaces externos del título y muestra avisos de logros con bitmap local.
-El progreso se conserva en Códice → Logros, sin Steam/PSN. La sesión00.11 dio
-18,36FPS de media activa; la nueva mejora requiere medición en Vita.
+La versión actual **00.13 — Draw Budget** protege las casillas táctiles cuando
+no hay rey, agrupa el reinicio de paleta por entidad y registra entidades,
+callbacks y sprites. Gráficos/sonido de00.12 confirmados por el usuario; su
+sesión activa dio22,18FPS mixtos y composición1,75ms. Las regresiones locales
+pasan; mejora deFPS13 y estabilidad física pendientes.
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
 - [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
-- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION12.md)
-- [Instalación del VPK 00.12](docs/TEST_BUILD.md)
+- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION13.md)
+- [Instalación del VPK 00.13](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Controles para Vita](docs/images/controls-vita.png)

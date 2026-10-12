@@ -134,6 +134,7 @@ static int trifill(lua_State *L){return triangle(L,1);}
 static int tri(lua_State *L){return triangle(L,0);}
 static int circle(lua_State *L){double x=luaL_checknumber(L,1),y=luaL_checknumber(L,2),r=luaL_checknumber(L,3);int c=luaL_optint(L,4,ink);for(int yy=(int)(y-r);yy<=y+r;yy++)for(int xx=(int)(x-r);xx<=x+r;xx++)if((xx-x)*(xx-x)+(yy-y)*(yy-y)<=r*r)dot(xx,yy,c);return 0;}
 static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,int fy){
+ sg_perf.sprite_calls++;
  Surface *s=&surfaces[sheet],*d=&surfaces[dst];
  if(dw<0){dx+=dw;dw=-dw;fx=!fx;}if(dh<0){dy+=dh;dh=-dh;fy=!fy;}
  if(dw<=0||dh<=0||sw<=0||sh<=0)return;
@@ -194,6 +195,23 @@ static int spr(lua_State *L){int n=luaL_checkint(L,1),cols=surfaces[sheet].w/gri
 static int sget(lua_State *L){Surface *s=&surfaces[sheet];int x=luaL_checkint(L,1),y=luaL_checkint(L,2);lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
 static int size(lua_State *L){int id=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):dst;lua_pushinteger(L,surfaces[id].w);lua_pushinteger(L,surfaces[id].h);return 2;}
 static int pal(lua_State *L){int n=lua_gettop(L);unsigned char *map=lua_toboolean(L,3)?displaymap:mapping;if(!n){for(int i=0;i<256;i++){mapping[i]=i;displaymap[i]=i;}return 0;}if(lua_isnil(L,1))return 0;if(lua_istable(L,1)){map=lua_toboolean(L,2)?displaymap:mapping;lua_pushnil(L);while(lua_next(L,1)){map[lua_tointeger(L,-2)&255]=lua_tointeger(L,-1)&255;lua_pop(L,1);}}else map[luaL_checkint(L,1)&255]=luaL_checkint(L,2)&255;return 0;}
+static int palette_reset(lua_State *L){
+ sg_perf.palette_resets++;
+ /* The game temporarily replaces pal with a no-op while drawing pause layers. */
+ lua_getglobal(L,"pal");int enabled=lua_iscfunction(L,-1)&&lua_tocfunction(L,-1)==pal;lua_pop(L,1);
+ if(enabled){for(int i=0;i<10;i++)mapping[i]=displaymap[i]=i;}
+ else {
+  sg_perf.palette_suppressed++;
+  /* Preserve custom/pause Lua replacements instead of assuming they are no-ops. */
+  for(int i=0;i<10;i++){
+   lua_getglobal(L,"pal");lua_pushinteger(L,i);lua_pushinteger(L,i);lua_call(L,2,0);
+   lua_getglobal(L,"pal");lua_pushinteger(L,i);lua_pushinteger(L,i);lua_pushinteger(L,1);lua_call(L,3,0);
+  }
+ }
+ for(int i=1;i<10;i++)transparent[i]=0;transparent[0]=1;
+ sprite_pattern[1]=0;sprite_pair[1]=1;
+ return 0;
+}
 static int palt(lua_State *L){if(!lua_gettop(L)){memset(transparent,0,256);transparent[0]=1;}else transparent[luaL_checkint(L,1)&255]=lua_toboolean(L,2);return 0;}
 static int newwin(lua_State *L){create(L,"screen",luaL_checkint(L,2),luaL_checkint(L,3));dst=0;return 0;}
 static int delsrf(lua_State *L){int id=locate(L,luaL_checkstring(L,1));if(id==0)return luaL_error(L,"Cannot delete screen");allocated-=(size_t)surfaces[id].w*surfaces[id].h;free(surfaces[id].p);surfaces[id].p=NULL;surfaces[id].w=surfaces[id].h=0;return 0;}
@@ -285,3 +303,5 @@ void sg_present(uint32_t *p,int width,int height){sg_present_rows(p,width,height
 uint32_t sg_present_background(void){return colors[displaymap[0]];}
 
 void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++){free_glyphs(&fonts[i]);free(fonts[i].data);}memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}
+
+void sg_graphics_fast_api(lua_State *L){reg(L,"pal_rst",palette_reset);}

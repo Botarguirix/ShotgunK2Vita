@@ -4,6 +4,7 @@
 typedef struct {
     uint64_t update_us, draw_us, font_build_us;
     uint64_t input_calls, input_evaluations, input_parses;
+    uint64_t entities, entity_updates, entity_draws, palette_resets, palette_suppressed, sprite_calls;
     uint64_t glyph_hits, glyph_misses, blit_pixels;
 } SgPerf;
 

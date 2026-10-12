@@ -1,8 +1,8 @@
-# Iteración 12 — Frame Budget (00.12)
+# Iteración 13 — Draw Budget (00.13)
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.12/ShotgunK2Vita-iteration12-frame-budget.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.13/ShotgunK2Vita-iteration13-draw-budget.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -20,7 +20,7 @@ fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.12/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.13/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -144,3 +144,16 @@ Próxima13 — Draw Budget: perfilar primitivas y callbacks dominantes en la par
 una vez cuantificada la reducción real de present_ms. Mantener media/P95,
 controles, audio y estabilidad; no compresión de archivos como sustituto de
 reducir trabajo de dibujo. No HUD propio.
+
+## Prueba00.13
+
+Instalar sobre SGKV00001, sin borrar ux0:data/shotgunk2vita ni save.
+Repetir toque de tablero/pausa/transición al perder o terminar un piso; probar
+L1/R1, regreso a controles físicos, logro/Códice, sonido y Exit. Registrar menú
+y partida60–120s con mismos relojes. Ideal comparar primer tablero cargado y
+más adelante uno con más piezas/efectos. Enviar carpeta logs/00.13-... completa.
+
+14 — Entity Profile: analizar entidades/callbacks/sprites junto a draw/update;
+perfilar primitivas y sombras dominantes antes de cachear tiles o descartar
+efectos. No quitar lógica para alcanzarFPS. Objetivo30 estables:presupuesto
+33,3ms y P95 próximo a ese límite;60 necesita16,7ms, todavía pendiente.

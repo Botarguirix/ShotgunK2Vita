@@ -1,7 +1,7 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION12.md](INFORME_ROADMAP_ITERACION12.md).
+Informe actual: [INFORME_ROADMAP_ITERACION13.md](INFORME_ROADMAP_ITERACION13.md).
 
 Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
@@ -174,3 +174,16 @@ no es 30/60 estable. Transferencia pequeña funciona; composición aún costosa.
 
 12 optimiza composición, retira enlaces y sustituye aviso conservando logros.
 13 Draw Budget perfilará dibujo/Lua. [Detalles](STATUS_ITERATION12.md).
+
+## Actualización00.13 — Draw Budget
+
+Usuario confirma gráficos y todos los sonidos correctos; menú aproximadamente
+30FPS con algunas caídas. CSV:2008 muestras activas antes del fallo,22,18FPS
+promedio mixto,45,087ms/frame y P95 66,742ms. Update11,346; draw18,879;
+present1,745; subida0,638; envíoGXM0,227; espera10,244ms. CPU observado500MHz.
+No incluir la pantalla detenida ni comparar directamente recorridos distintos.
+La reducción de composición lógica está reflejada en estos tiempos; lógica y
+dibujo (~30,23ms) dominan ahora el trabajo. No es30FPS estable en toda la partida.
+
+13 corrige hero nil táctil y agrupa pal_rst, con contadores de entidades/sprites.
+14 Entity Profile estudiará rutas dominantes. [Detalles](STATUS_ITERATION13.md).

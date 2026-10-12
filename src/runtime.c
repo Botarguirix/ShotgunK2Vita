@@ -84,6 +84,25 @@ static void resolve(const char *name,char *path,size_t cap) {
     if(name[0]=='/' || strchr(name,':') || strstr(name,"..")) {path[0]=0;return;}
     snprintf(path,cap,"%s/%s",rootpath,name);
 }
+static int load_vita_script(lua_State *L,const char *path,const char *name){
+ if(strcmp(name,"code/menu.lua")&&strcmp(name,"code.lua"))return luaL_loadfile(L,path);
+ FILE *f=fopen(path,"rb");if(!f){lua_pushstring(L,"Game script missing");return LUA_ERRFILE;}
+ fseek(f,0,SEEK_END);long size=ftell(f);rewind(f);
+ if(size<0||size>4*1024*1024){fclose(f);lua_pushstring(L,"Game script size invalid");return LUA_ERRFILE;}
+ char *source=malloc((size_t)size+128);if(!source){fclose(f);lua_pushstring(L,"Game script allocation failed");return LUA_ERRMEM;}
+ size_t got=fread(source,1,(size_t)size,f);fclose(f);source[got]=0;
+ if(got!=(size_t)size){free(source);lua_pushstring(L,"Game script read incomplete");return LUA_ERRFILE;}
+ if(!strcmp(name,"code/menu.lua")){
+  char *a=strstr(source,"local str=\"Join our Discord!\""),*b=a?strstr(a,"-- CASTLE"):NULL;
+  if(a&&b){for(char*q=a;q<b;q++)if(*q!='\n'&&*q!='\r')*q=' ';logline("vita_external_links=removed");}
+  else logline("vita_external_links=pattern_not_found");
+ }else{
+  const char *prefix="thr_gre = ";char *a=strstr(source,"thr_gre = hero.special and hero.special==\"grenade\" and hero.grenade_ready");
+  if(a){a+=strlen(prefix);size_t tail=got-(size_t)(a-source);memmove(a+9,a,tail+1);memcpy(a,"hero and ",9);got+=9;logline("vita_touch_hero_guard=applied");}
+  else logline("vita_touch_hero_guard=pattern_not_found");
+ }
+ char chunk[2050];snprintf(chunk,sizeof(chunk),"@%s",path);int rc=luaL_loadbuffer(L,source,got,chunk);free(source);return rc;
+}
 static int require_file(lua_State *L) {
     const char *name=luaL_checkstring(L,1);char path[2048];resolve(name,path,sizeof(path));
     lua_getfield(L,LUA_REGISTRYINDEX,"sg.loaded");
@@ -92,17 +111,7 @@ static int require_file(lua_State *L) {
     lua_pop(L,1);
     logline(path);
     sg_diag_event("require",path);
-    if(!strcmp(name,"code/menu.lua")){
-     FILE *f=fopen(path,"rb");if(!f)return luaL_error(L,"Menu script missing");
-     fseek(f,0,SEEK_END);long size=ftell(f);rewind(f);
-     if(size<0||size>1024*1024){fclose(f);return luaL_error(L,"Menu script size invalid");}
-     char *source=malloc((size_t)size+1);if(!source){fclose(f);return luaL_error(L,"Menu allocation failed");}
-     size_t got=fread(source,1,(size_t)size,f);fclose(f);source[got]=0;
-     char *a=strstr(source,"local str=\"Join our Discord!\""),*b=a?strstr(a,"-- CASTLE"):NULL;
-     if(a&&b){for(char *q=a;q<b;q++)if(*q!='\n'&&*q!='\r')*q=' ';logline("vita_external_links=removed");}
-     else logline("vita_external_links=pattern_not_found");
-     int rc=luaL_loadbuffer(L,source,got,path);free(source);if(rc)return lua_error(L);
-    }else if(luaL_loadfile(L,path))return lua_error(L);
+    if(load_vita_script(L,path,name))return lua_error(L);
     lua_call(L,0,1);
     if(lua_isnil(L,-1)){lua_pop(L,1);lua_pushboolean(L,1);}
     lua_pushvalue(L,-1);lua_setfield(L,-3,path);
@@ -197,7 +206,15 @@ static int remove_save(lua_State *L){const char *name=luaL_checkstring(L,1);if(s
 static int lib_callbacks(lua_State *L,const char *name){lua_getglobal(L,name);if(lua_istable(L,-1)){lua_pushnil(L);while(lua_next(L,-2)){lua_pushvalue(L,-1);lua_call(L,0,0);lua_pop(L,1);}}lua_pop(L,1);return 0;}
 static int shallow_copy(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_newtable(L);lua_pushnil(L);while(lua_next(L,1)){lua_pushvalue(L,-2);lua_pushvalue(L,-2);lua_settable(L,2);lua_pop(L,1);}return 1;}
 static int init_libs(lua_State *L){return lib_callbacks(L,"_lib_init");}
-static int frame_call(lua_State *L){sg_diag_phase(SG_DIAG_UPDATE);uint64_t start=sg_now_us();lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;sg_diag_phase(SG_DIAG_DRAW);start=sg_now_us();lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;return 0;}
+static int entity_call(lua_State *L){
+ int draw=lua_toboolean(L,lua_upvalueindex(2));if(draw)sg_perf.entity_draws++;else sg_perf.entity_updates++;
+ int args=lua_gettop(L);lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,args,LUA_MULTRET);return lua_gettop(L);
+}
+static void instrument_entity(const char *name,int draw){
+ lua_getglobal(state,name);if(!lua_isfunction(state,-1)){lua_pop(state,1);return;}
+ lua_pushboolean(state,draw);lua_pushcclosure(state,entity_call,2);lua_setglobal(state,name);
+}
+static int frame_call(lua_State *L){lua_getglobal(L,"ents");if(lua_istable(L,-1))sg_perf.entities=lua_objlen(L,-1);lua_pop(L,1);sg_diag_phase(SG_DIAG_UPDATE);uint64_t start=sg_now_us();lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;sg_diag_phase(SG_DIAG_DRAW);start=sg_now_us();lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;return 0;}
 static int traceback(lua_State *L){
     char message[8192];const char *error=lua_tostring(L,1);
     size_t used=(size_t)snprintf(message,sizeof(message),"%s\nstack traceback:",error?error:"Non-string Lua error");
@@ -275,11 +292,12 @@ int sg_boot(const char *root,FILE *log) {
     char path[2048];resolve("code.lua",path,sizeof(path));
     logline("ShotgunK2Vita Lua 5.1 bootstrap; unsupported APIs stop execution");
     sg_diag_event("load",path);
-    int status=luaL_loadfile(state,path);if(!status)status=protected_call(state,0,0);
+    int status=load_vita_script(state,path,"code.lua");if(!status)status=protected_call(state,0,0);
     if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=protected_call(state,0,0);}
     if(!status){index_options(state);lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     sg_ui_reset();reg("ach_unlock",local_notice);
+    sg_graphics_fast_api(state);instrument_entity("dre",1);instrument_entity("upe",0);
     logline("_init completed; achievement popup=native; external services=disabled");return 1;
 }
 const char *sg_error(void){return failure;}
