@@ -1,4 +1,4 @@
-# Herramienta de rendimiento · versión 00.13
+# Herramienta de rendimiento · versión 00.14
 
 Desde 00.05, el CSV se guarda en cada sesión:
 `ux0:data/shotgunk2vita/logs/<versión>-<identificador>-<n>/performance.csv`.
@@ -9,9 +9,9 @@ CSV/logs. Los participantes de presentación no indican utilización de CPU.
 
 ## Medir en Vita
 
-1. Instalar el VPK 00.13 conservando la carpeta de datos y `save/`.
+1. Instalar el VPK 00.14 conservando la carpeta de datos y `save/`.
 2. Hacer un recorrido de unos 60 segundos: título, menú y primer tablero.
-3. Salir con START+SELECT y copiar la carpeta de esa sesión dentro de `logs/`.
+3. Salir por menú→Exit y copiar la carpeta de esa sesión dentro de `logs/`.
    Incluye `performance.csv`, `runtime.log`, `audio.log` y `crash-trace.log`;
    las ejecuciones anteriores se conservan al abrir de nuevo.
 4. En Windows, abrir `PerformanceTool.cmd` y seleccionar el CSV. Requiere
@@ -48,7 +48,7 @@ Copiar el archivo a `ux0:data/shotgunk2vita/performance.cfg` y reiniciar el jueg
 Sin archivo se usa balanced. Los únicos valores aceptados de `cpu_mhz` son
 333 y 444; `workers` acepta 1–3. `profile=0` desactiva
 el CSV; los logs de diagnóstico siguen activos en 00.05. El reloj previo se restaura al salir por
-START+SELECT. El log informa si Vita rechazó una frecuencia o un hilo.
+Exit en el menú. El log informa si Vita rechazó una frecuencia o un hilo.
 
 La aplicación usa los tres núcleos disponibles para aplicaciones:
 Lua/dibujo y parte de la presentación en CPU 0; filas en CPU 1 y CPU 2.
@@ -129,3 +129,12 @@ blit, no tiles; blit_pixels mide área procesada. No reducir entidades sin medir
 El informe da media/máximo y correlación de estos contadores con draw_ms.
 Correlación no demuestra causalidad; mezclar menú/partida puede ocultar el coste.
 Comparar misma escena/relojes, media/P95 y excluir running=0.
+
+## Sombras14 y movimiento
+
+shadow_calls cuenta llamadas a shpr; shadow_pixels cuenta intentos con máscara
+activa, incluso si luego el clip descarta el píxel; shadow_fallbacks usa la
+función Lua por sustitución de primitivas/bright. Media/máximo y correlación
+ayudan a comparar misma escena, sin atribuir causalidad ni predecir60FPS.
+control_state/runtime y eventos de movimiento/crash-trace complementan el CSV.
+No atajos SELECT ni toque del tablero; L1/R1 frontales permanecen. Error:START solo.

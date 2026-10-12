@@ -222,6 +222,28 @@ static int clip(lua_State *L){clipx=luaL_optint(L,1,0);clipy=luaL_optint(L,2,0);
 static int rect(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);for(int xx=x;xx<=x2;xx++){dot(xx,y,c);dot(xx,y2,c);}for(int yy=y;yy<=y2;yy++){dot(x,yy,c);dot(x2,yy,c);}return 0;}
 static int pset(lua_State *L){dot(luaL_checkint(L,1),luaL_checkint(L,2),luaL_optint(L,3,ink));return 0;}
 static int pget(lua_State *L){Surface *s=&surfaces[dst];int x=luaL_checkint(L,1)-camx,y=luaL_checkint(L,2)-camy;lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
+static int shadow_batch(lua_State *L){
+ sg_perf.shadow_calls++;
+ lua_getglobal(L,"bright");int compatible=lua_rawequal(L,-1,lua_upvalueindex(2));lua_pop(L,1);
+ const char *names[]={"sget","pget","pset"};lua_CFunction funcs[]={sget,pget,pset};
+ for(int i=0;i<3&&compatible;i++){lua_getglobal(L,names[i]);compatible=lua_iscfunction(L,-1)&&lua_tocfunction(L,-1)==funcs[i];lua_pop(L,1);}
+ if(!compatible){sg_perf.shadow_fallbacks++;int n=lua_gettop(L);lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);return lua_gettop(L);}
+ double a[6];for(int i=0;i<6;i++){a[i]=luaL_checknumber(L,i+1);if(!isfinite(a[i])||fabs(a[i])>1e9)return luaL_error(L,"Invalid shadow coordinates");}
+ if(a[2]<1||a[3]<1)return 0;
+ if(a[2]>4096||a[3]>4096)return luaL_error(L,"Shadow region too large");
+ double inc=lua_isnoneornil(L,7)||(lua_isboolean(L,7)&&!lua_toboolean(L,7))?-1:luaL_checknumber(L,7);
+ if(!isfinite(inc))return luaL_error(L,"Invalid shadow shade");
+ int w=(int)a[2],h=(int)a[3],shade=(int)fmin(8,fmax(1,4+inc));
+ Surface *s=&surfaces[sheet],*d=&surfaces[dst];
+ for(int dx=0;dx<w;dx++)for(int dy=0;dy<h;dy++){
+  int sx=(int)(a[0]+dx),sy=(int)(a[1]+dy);if(sx<0||sy<0||sx>=s->w||sy>=s->h||!s->p[sy*s->w+sx])continue;
+  int wx=(int)(a[4]+dx),wy=(int)(a[5]+dy),x=wx-camx,y=wy-camy;
+  int color=x>=0&&y>=0&&x<d->w&&y<d->h?d->p[y*d->w+x]:0,bx=16+color;
+  int out=bx<s->w&&shade<s->h?s->p[shade*s->w+bx]:0;
+  dot(wx,wy,out);sg_perf.shadow_pixels++;
+ }
+ return 0;
+}
 static int blend(lua_State *L){if(!lua_gettop(L)){blend_identity=1;for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else {blend_identity=0;blend_table[luaL_checkint(L,1)&255][luaL_checkint(L,2)&255]=luaL_checkint(L,3)&255;}return 0;}
 static int exe(lua_State *L){int d=dst,s=sheet,cx=camx,cy=camy,p=pattern,tr=pattern_transparent,ic=ink,cx0=clipx,cy0=clipy,cw=clipw,ch=cliph,f=current_font;unsigned char map[256];memcpy(map,mapping,256);lua_pushvalue(L,1);int status=lua_pcall(L,0,0,0);dst=d;sheet=s;camx=cx;camy=cy;pattern=p;pattern_transparent=tr;ink=ic;clipx=cx0;clipy=cy0;clipw=cw;cliph=ch;current_font=f;memcpy(mapping,map,256);if(status)return lua_error(L);return 0;}
 static int patterns(lua_State *L){lua_newtable(L);int x=luaL_checkint(L,1),y=luaL_checkint(L,2),n=luaL_checkint(L,3);for(int i=0;i<n;i++){Surface *s=&surfaces[sheet];int value=0;for(int yy=0;yy<4;yy++)for(int xx=0;xx<4;xx++)if(s->p[(y+yy)*s->w+x+i*4+xx])value|=1<<(yy*4+xx);lua_pushinteger(L,value);lua_rawseti(L,-2,i+1);}return 1;}
@@ -304,4 +326,9 @@ uint32_t sg_present_background(void){return colors[displaymap[0]];}
 
 void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++){free_glyphs(&fonts[i]);free(fonts[i].data);}memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}
 
-void sg_graphics_fast_api(lua_State *L){reg(L,"pal_rst",palette_reset);}
+void sg_graphics_fast_api(lua_State *L){
+ reg(L,"pal_rst",palette_reset);
+ lua_getglobal(L,"shpr");lua_getglobal(L,"bright");
+ if(lua_isfunction(L,-2)&&lua_isfunction(L,-1)){lua_pushcclosure(L,shadow_batch,2);lua_setglobal(L,"shpr");}
+ else lua_pop(L,2);
+}

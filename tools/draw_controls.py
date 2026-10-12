@@ -12,7 +12,7 @@ def font(size, bold=False):
     return ImageFont.truetype(str(font_root/('segoeuib.ttf' if bold else 'segoeui.ttf')),size)
 peach=(255,208,173); pink=(255,103,145); muted=(169,173,194)
 d.text((60,38),'ShotgunK2Vita · Controles PS Vita',font=font(46,True),fill=peach)
-d.text((62,103),'Mapa adaptado a Vita OLED · versión experimental 00.03',font=font(24),fill=muted)
+d.text((62,103),'Mapa adaptado a Vita OLED · versión 00.14 · sólo L1/R1 usan touch',font=font(24),fill=muted)
 
 # Front view of an OLED Vita: these are schematic shapes, not a device photo.
 d.rounded_rectangle((360,280,1240,730),radius=110,fill=(10,12,18),outline=(91,94,118),width=5)
@@ -53,13 +53,16 @@ card((1285,350,280,207),'Botones',['×  Confirmar / mover','○  Cancelar','□ 
 card((35,557,280,170),'SELECT / START',['SELECT: información','START: pausa'],(459,675))
 card((1285,592,280,123),'Stick derecho',['Apuntar','con la escopeta'],(1154,592))
 
-d.text((60,793),'Combinaciones para los botones que faltan en Vita',font=font(28,True),fill=peach)
-combos=[('SELECT + L / R','Página anterior / siguiente'),('SELECT + TRIÁNGULO','Mostrar / ocultar medidor FPS'),('SELECT + □','Botón L3 (stick izquierdo)'),('START + SELECT','Salir de la aplicación'),('SELECT + ○','Botón R3 (stick derecho)')]
-for i,(keys,label) in enumerate(combos):
+d.text((60,793),'Zonas táctiles activas y salida',font=font(28,True),fill=peach)
+items=[('L1 táctil','Esquina inferior izquierda'),('R1 táctil','Esquina inferior derecha'),('Códice / páginas','L1: anterior · R1: siguiente'),('Salir del juego','Menú → Exit'),('Si aparece un error','START: salir y conservar logs')]
+for i,(keys,label) in enumerate(items):
     col=i%2;row=i//2;x=60+col*755;y=849+row*84
     d.rounded_rectangle((x,y,x+725,y+68),radius=13,fill=(32,37,59))
     d.text((x+16,y+10),keys,font=font(20,True),fill=pink)
-    d.text((x+300,y+14),label,font=font(19),fill=peach)
-d.text((60,1138),'Los gatillos L/R y los botones de página están separados para evitar acciones simultáneas.',font=font(21),fill=muted)
+    d.text((x+295,y+14),label,font=font(19),fill=peach)
+for x,label in ((531,'L1'),(1008,'R1')):
+    d.rectangle((x,618,x+59,650),fill=(56,40,32),outline=pink,width=2)
+    d.text((x+30,635),label,font=font(20,True),fill=peach,anchor='mm')
+d.text((60,1138),'Cruceta/stick seleccionan; × confirma movimiento. Sin atajos SELECT ni toque del tablero.',font=font(21),fill=muted)
 im.save(out/'controls-vita.png')
 print(out/'controls-vita.png')

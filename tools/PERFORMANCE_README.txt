@@ -1,31 +1,10 @@
-ShotgunK2Vita Performance Tool
+ShotgunK2Vita Performance Tool · 00.14
 
-1. Copiar toda la sesión de ux0:data/shotgunk2vita/logs/ al PC tras salir del juego.
-2. Abrir PerformanceTool.cmd y seleccionar ese CSV. Requiere Python 3.
-3. El informe HTML se abre en el navegador y funciona sin conexión.
-
-Para ajustar rendimiento, copiar uno de presets/balanced.cfg, single.cfg o
-battery.cfg a ux0:data/shotgunk2vita/performance.cfg. Reiniciar el juego.
-Comparar los mismos 60 segundos de título, menú y tablero. Conservar un CSV
-por corrida; cada ejecución tiene su propia carpeta. No reemplazar save/.
-
-balanced: CPU 444 MHz, presentación 3 participantes.
-single: CPU 444 MHz, presentación 1 participante (comparación A/B).
-battery: CPU 333 MHz, presentación 2 participantes.
-
-00.09 retira el contador propio; las métricas siguen en CSV y logs.
-copy-cpu/copy-dma comparan transferencias; balanced selecciona al arrancar.
-Audio tiene su propio audio.log; el CSV no mide la carga de su hilo.
-
-00.08: excluye muestras detenidas (running=0 o runtime.log contiguo) e informa
-copy_ms de RAM a pantalla por separado. Para versiones antiguas mantener CSV
-y runtime.log juntos: el primer checkpoint running=0 es un límite aproximado.
-
-Auditar datos preparados sin modificarlos:
-python stability_audit.py RUTA_DATOS --output auditoria-nueva.json
-Enumera dependencias SUGAR conocidas y tamaños de imágenes. No prueba todas las
-rutas de juego. SGI1 ya usa un byte por píxel; comprimir reduce almacenamiento,
-no el trabajo de dibujo de cada frame. No redimensionar atlas de sprites.
-
-00.10: consultas/evaluaciones/parseos de entrada en CSV e informe.
-Exit del menú registra menu_exit y cierra por el mismo teardown nativo.
+Copiar sesión completa logs/ al PC tras salir mediante menú/Exit.
+Abrir PerformanceTool.cmd y seleccionar performance.csv; requiere Python3.
+El informe HTML funciona sin conexión. Conservar datos y save.
+balanced/battery usan GPU; copy-cpu/single comparan renderizador CPU anterior.
+workers sólo afecta CPU, no GPU. Evitar forzar DMA:falló integridad en consola.
+Comparar misma escena/relojes y P95. Los microbenchmarks PC no predicen FPS Vita.
+14 muestra contadores de entidades y sombras. Movimiento/animación se registra
+en runtime y crash-trace. No HUD ni atajos SELECT; sólo L1/R1 usan frontal.

@@ -12,7 +12,7 @@ build="build-host/iteration-$iteration-checks"
 cmake -S . -B "$build" -DSG_HOST_PROBE=ON -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_FLAGS="-O1 -fsanitize=address,undefined -fno-omit-frame-pointer" \
   -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" > "$output/configure.log" 2>&1
-cmake --build "$build" --target sg_inputs_probe sg_input_cache_probe sg_triangles_probe sg_aim_probe sg_combat_probe sg_touch_guard_probe sg_draw_metrics_probe sg_palette_budget_probe sg_achievements_probe sg_local_ui_probe sg_options_probe sg_present_probe sg_text_probe sg_pad_repeat_probe sg_diagnostics_probe -j4 > "$output/build.log" 2>&1
+cmake --build "$build" --target sg_inputs_probe sg_input_cache_probe sg_triangles_probe sg_aim_probe sg_combat_probe sg_touch_guard_probe sg_controller_movement_probe sg_shadow_budget_probe sg_draw_metrics_probe sg_palette_budget_probe sg_achievements_probe sg_local_ui_probe sg_options_probe sg_present_probe sg_text_probe sg_pad_repeat_probe sg_diagnostics_probe -j4 > "$output/build.log" 2>&1
 export ASAN_OPTIONS=detect_leaks=1
 cc -O1 -fsanitize=address,undefined -I src tests/test_frame_copy.c -o "$build/sg_copy_probe"
 "$build/sg_copy_probe" > "$output/copy.log" 2>&1
@@ -23,6 +23,8 @@ cc -O1 -fsanitize=address,undefined -I src tests/test_frame_copy.c -o "$build/sg
 "$build/sg_touch_guard_probe" private/game > "$output/touch-guard.log" 2>&1
 "$build/sg_draw_metrics_probe" private/game > "$output/draw-metrics.log" 2>&1
 "$build/sg_palette_budget_probe" private/game > "$output/palette-budget.log" 2>&1
+"$build/sg_controller_movement_probe" private/game > "$output/controller-movement.log" 2>&1
+"$build/sg_shadow_budget_probe" private/game > "$output/shadow-budget.log" 2>&1
 "$build/sg_combat_probe" private/game > "$output/combat.log" 2>&1
 mkdir -p "$output/achievement-fixture"
 cp -a private/game/. "$output/achievement-fixture/"

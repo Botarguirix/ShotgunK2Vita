@@ -26,3 +26,6 @@ int sg_host_eval(const char *script);
 #define SG_RPAGE 8192u
 #define SG_LSTICK 16384u
 #define SG_RSTICK 32768u
+
+/* Low-rate physical movement diagnostics; no on-screen overlay. */
+void sg_report_movement(void);

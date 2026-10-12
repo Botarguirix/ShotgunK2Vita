@@ -78,7 +78,7 @@ static const char *run_gpu(Config config,FILE *log){
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d renderer=gpu\n",config.cpu,scePowerGetArmClockFrequency());fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
  if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
- if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls\n");fflush(csv);}
+ if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks\n");fflush(csv);}
  memset(error_pixels,0,WIDTH*HEIGHT*4);text(error_pixels,"SHOTGUNK VITA\nLOADING LUA AND GAME DATA",40);
  SgGpuStats gpu={0};
  if(!sg_gpu_present(error_pixels,WIDTH,HEIGHT,0,0,0xff000000,&gpu)){free(pixels);free(error_pixels);if(csv)fclose(csv);return "gpu_startup_error";}
@@ -90,19 +90,18 @@ static const char *run_gpu(Config config,FILE *log){
  while(1){
   sg_diag_phase(SG_DIAG_INPUT);
   SceCtrlData pad={0};SceTouchData touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(0,&touch,1);
-  if((pad.buttons&(SCE_CTRL_START|SCE_CTRL_SELECT))==(SCE_CTRL_START|SCE_CTRL_SELECT))break;
+  if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
-  int game_touch=-1;
   for(unsigned i=0;i<touch.reportNum;i++){
    unsigned shoulder=sg_touch_shoulder(touch.report[i].x,touch.report[i].y);
-   buttons|=shoulder;if(!shoulder&&game_touch<0)game_touch=(int)i;
+   buttons|=shoulder;
   }
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
-  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,game_touch>=0,game_touch>=0?touch.report[game_touch].x*320/1920:160,game_touch>=0?touch.report[game_touch].y*180/1088:90);
+  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
   uint64_t present_start=sg_now_us();if(running)sg_present(pixels,320,180);uint64_t present_end=sg_now_us();
-  if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)error_pixels[i]=0xff201018;text(error_pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART AND SELECT TO EXIT",28);text(error_pixels,sg_error(),110);}
+  if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)error_pixels[i]=0xff201018;text(error_pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(error_pixels,sg_error(),110);}
   sg_diag_phase(SG_DIAG_DISPLAY);
   int display_ok=sg_gpu_present(running?pixels:error_pixels,running?320:WIDTH,running?180:HEIGHT,buttons,running,running?sg_present_background():0xff201018,&gpu);
   uint64_t end=sg_now_us();uint64_t copy_us=gpu.upload_us;
@@ -110,11 +109,11 @@ static const char *run_gpu(Config config,FILE *log){
   sg_diag_phase(running?SG_DIAG_IDLE:SG_DIAG_ERROR);
   uint64_t frame_duration=end-last_end;last_end=end;elapsed+=frame_duration;window_frames++;
   if(end-window_time>=500000){snprintf(metrics,sizeof(metrics),"FPS %u U %u D %u P %u CPU %d W %d",elapsed?(unsigned)(window_frames*1000000ULL/elapsed):0,(unsigned)(sg_perf.update_us/1000),(unsigned)(sg_perf.draw_us/1000),(unsigned)((present_end-present_start)/1000),scePowerGetArmClockFrequency(),workers);window_time=end;window_frames=0;elapsed=0;}
-  if(csv)fprintf(csv,"%u,%.3f,%.3f,%.3f,%.3f,%.3f,%llu,%llu,%.3f,%llu,%d,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%llu,%llu,%llu,1,%.3f,%llu,%llu,%llu,%llu,%llu,%llu\n",frames,sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(present_end-present_start)/1000.0,gpu.wait_us/1000.0,frame_duration/1000.0,(unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,scePowerGetArmClockFrequency(),0.0,0.0,0.0,copy_us/1000.0,running,0,0,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses,gpu.submit_us/1000.0, (unsigned long long)sg_perf.entities,(unsigned long long)sg_perf.entity_updates,(unsigned long long)sg_perf.entity_draws,(unsigned long long)sg_perf.palette_resets,(unsigned long long)sg_perf.palette_suppressed,(unsigned long long)sg_perf.sprite_calls);
-  if(end-flush_time>=250000){if(csv)fflush(csv);sg_diag_memory(sg_lua_memory_kb(),sg_graphics_memory_kb());if(log){fprintf(log,"native_frames=%u running=%d renderer=gpu render_workers=1 upload_us=%llu submit_us=%llu wait_us=%llu lua_kb=%u surface_kb=%u %s\n",frames,running,(unsigned long long)gpu.upload_us,(unsigned long long)gpu.submit_us,(unsigned long long)gpu.wait_us,sg_lua_memory_kb(),sg_graphics_memory_kb(),metrics);fflush(log);}flush_time=end;}
+  if(csv)fprintf(csv,"%u,%.3f,%.3f,%.3f,%.3f,%.3f,%llu,%llu,%.3f,%llu,%d,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%llu,%llu,%llu,1,%.3f,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n",frames,sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(present_end-present_start)/1000.0,gpu.wait_us/1000.0,frame_duration/1000.0,(unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,scePowerGetArmClockFrequency(),0.0,0.0,0.0,copy_us/1000.0,running,0,0,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses,gpu.submit_us/1000.0, (unsigned long long)sg_perf.entities,(unsigned long long)sg_perf.entity_updates,(unsigned long long)sg_perf.entity_draws,(unsigned long long)sg_perf.palette_resets,(unsigned long long)sg_perf.palette_suppressed,(unsigned long long)sg_perf.sprite_calls,(unsigned long long)sg_perf.shadow_calls,(unsigned long long)sg_perf.shadow_pixels,(unsigned long long)sg_perf.shadow_fallbacks);
+  if(end-flush_time>=250000){if(running)sg_report_movement();if(csv)fflush(csv);sg_diag_memory(sg_lua_memory_kb(),sg_graphics_memory_kb());if(log){fprintf(log,"native_frames=%u running=%d renderer=gpu render_workers=1 upload_us=%llu submit_us=%llu wait_us=%llu lua_kb=%u surface_kb=%u %s\n",frames,running,(unsigned long long)gpu.upload_us,(unsigned long long)gpu.submit_us,(unsigned long long)gpu.wait_us,sg_lua_memory_kb(),sg_graphics_memory_kb(),metrics);fflush(log);}flush_time=end;}
   frames++;
  }
- sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"START+SELECT");
+ sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"clean");
  if(log)fprintf(log,"exit_reason=%s\n",exit_reason?exit_reason:running?"clean":"lua_error");
  sg_close();if(csv)fclose(csv);free(pixels);free(error_pixels);
  return exit_reason?exit_reason:running?"clean":"lua_error";
@@ -155,7 +154,7 @@ int main(void){
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d clock_rc=%d affinity_rc=%d framebuffer_rc=%d\n",config.cpu,scePowerGetArmClockFrequency(),clock_rc,affinity_rc,framebuffer_rc);fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
  if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
- if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls\n");fflush(csv);}
+ if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks\n");fflush(csv);}
  memset(pixels,0,WIDTH*HEIGHT*4);text(pixels,"SHOTGUNK VITA\nLOADING LUA AND GAME DATA",40);
  memcpy(display_buffers[0],pixels,WIDTH*HEIGHT*4);
  sceDisplaySetFrameBuf(&frame,SCE_DISPLAY_SETBUF_NEXTFRAME);sceDisplayWaitVblankStart();
@@ -167,19 +166,18 @@ int main(void){
  while(1){
   sg_diag_phase(SG_DIAG_INPUT);
   SceCtrlData pad={0};SceTouchData touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(0,&touch,1);
-  if((pad.buttons&(SCE_CTRL_START|SCE_CTRL_SELECT))==(SCE_CTRL_START|SCE_CTRL_SELECT))break;
+  if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
-  int game_touch=-1;
   for(unsigned i=0;i<touch.reportNum;i++){
    unsigned shoulder=sg_touch_shoulder(touch.report[i].x,touch.report[i].y);
-   buttons|=shoulder;if(!shoulder&&game_touch<0)game_touch=(int)i;
+   buttons|=shoulder;
   }
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
-  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,game_touch>=0,game_touch>=0?touch.report[game_touch].x*320/1920:160,game_touch>=0?touch.report[game_touch].y*180/1088:90);
+  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
   uint64_t present_start=sg_now_us();if(running)sg_render_pool_present(pixels,WIDTH,HEIGHT);uint64_t present_end=sg_now_us();SgRenderStats render=sg_render_pool_stats();
-  if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)pixels[i]=0xff201018;text(pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART AND SELECT TO EXIT",28);text(pixels,sg_error(),110);}
+  if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)pixels[i]=0xff201018;text(pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(pixels,sg_error(),110);}
   if(running)touch_buttons(pixels,buttons);
   sg_diag_phase(SG_DIAG_DISPLAY);
   uint64_t copy_start=sg_now_us();sg_copy_frame(&copier,display_buffers[back],pixels,WIDTH*HEIGHT*4,log);uint64_t copy_us=sg_now_us()-copy_start;
@@ -194,11 +192,11 @@ int main(void){
   if((display_rc<0||wait_rc<0)&&log){fprintf(log,"display_error=0x%08X wait_error=0x%08X\n",(unsigned)display_rc,(unsigned)wait_rc);fflush(log);}
   uint64_t frame_duration=end-last_end;last_end=end;elapsed+=frame_duration;window_frames++;
   if(end-window_time>=500000){snprintf(metrics,sizeof(metrics),"FPS %u U %u D %u P %u CPU %d W %d",elapsed?(unsigned)(window_frames*1000000ULL/elapsed):0,(unsigned)(sg_perf.update_us/1000),(unsigned)(sg_perf.draw_us/1000),(unsigned)((present_end-present_start)/1000),scePowerGetArmClockFrequency(),workers);window_time=end;window_frames=0;elapsed=0;}
-  if(csv)fprintf(csv,"%u,%.3f,%.3f,%.3f,%.3f,%.3f,%llu,%llu,%.3f,%llu,%d,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%llu,%llu,%llu,0,0.000,%llu,%llu,%llu,%llu,%llu,%llu\n",frames,sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(present_end-present_start)/1000.0,(end-wait_start)/1000.0,frame_duration/1000.0,(unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,scePowerGetArmClockFrequency(),render.worker_us[0]/1000.0,render.worker_us[1]/1000.0,render.worker_us[2]/1000.0,copy_us/1000.0,running,copier.mode,copier.last_rc,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses, (unsigned long long)sg_perf.entities,(unsigned long long)sg_perf.entity_updates,(unsigned long long)sg_perf.entity_draws,(unsigned long long)sg_perf.palette_resets,(unsigned long long)sg_perf.palette_suppressed,(unsigned long long)sg_perf.sprite_calls);
-  if(end-flush_time>=250000){if(csv)fflush(csv);sg_diag_memory(sg_lua_memory_kb(),sg_graphics_memory_kb());if(log){fprintf(log,"native_frames=%u running=%d render_workers=%d cpus=%d/%d/%d row_us=%llu/%llu/%llu lua_kb=%u surface_kb=%u %s\n",frames,running,workers,render.cpu[0],render.cpu[1],render.cpu[2],(unsigned long long)render.worker_us[0],(unsigned long long)render.worker_us[1],(unsigned long long)render.worker_us[2],sg_lua_memory_kb(),sg_graphics_memory_kb(),metrics);fflush(log);}flush_time=end;}
+  if(csv)fprintf(csv,"%u,%.3f,%.3f,%.3f,%.3f,%.3f,%llu,%llu,%.3f,%llu,%d,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%llu,%llu,%llu,0,0.000,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n",frames,sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(present_end-present_start)/1000.0,(end-wait_start)/1000.0,frame_duration/1000.0,(unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,scePowerGetArmClockFrequency(),render.worker_us[0]/1000.0,render.worker_us[1]/1000.0,render.worker_us[2]/1000.0,copy_us/1000.0,running,copier.mode,copier.last_rc,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses, (unsigned long long)sg_perf.entities,(unsigned long long)sg_perf.entity_updates,(unsigned long long)sg_perf.entity_draws,(unsigned long long)sg_perf.palette_resets,(unsigned long long)sg_perf.palette_suppressed,(unsigned long long)sg_perf.sprite_calls,(unsigned long long)sg_perf.shadow_calls,(unsigned long long)sg_perf.shadow_pixels,(unsigned long long)sg_perf.shadow_fallbacks);
+  if(end-flush_time>=250000){if(running)sg_report_movement();if(csv)fflush(csv);sg_diag_memory(sg_lua_memory_kb(),sg_graphics_memory_kb());if(log){fprintf(log,"native_frames=%u running=%d render_workers=%d cpus=%d/%d/%d row_us=%llu/%llu/%llu lua_kb=%u surface_kb=%u %s\n",frames,running,workers,render.cpu[0],render.cpu[1],render.cpu[2],(unsigned long long)render.worker_us[0],(unsigned long long)render.worker_us[1],(unsigned long long)render.worker_us[2],sg_lua_memory_kb(),sg_graphics_memory_kb(),metrics);fflush(log);}flush_time=end;}
   frames++;
  }
- sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"START+SELECT");
+ sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"clean");
  if(log)fprintf(log,"exit_reason=%s\n",exit_reason?exit_reason:running?"clean":"lua_error");
  sg_render_pool_stop();sg_close();if(csv)fclose(csv);if(log)fclose(log);fflush(stdout);fflush(stderr);sg_diag_stop(exit_reason?exit_reason:running?"clean":"lua_error");sceDisplaySetFrameBuf(NULL,SCE_DISPLAY_SETBUF_NEXTFRAME);sceDisplayWaitVblankStart();free(pixels);sceKernelFreeMemBlock(block);
  if(old_clock>0){scePowerSetArmClockFrequency(old_clock);}

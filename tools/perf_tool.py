@@ -42,7 +42,7 @@ def read_samples(path, skip):
 
 def entity_summary(rows):
     result={}
-    for k in ('entities','entity_updates','entity_draws','palette_resets','palette_suppressed','sprite_calls','blit_pixels'):
+    for k in ('entities','entity_updates','entity_draws','palette_resets','palette_suppressed','sprite_calls','blit_pixels','shadow_calls','shadow_pixels','shadow_fallbacks'):
         if not any(k in r for r in rows): continue
         values=[r.get(k,0) for r in rows]; draw=[r['draw_ms'] for r in rows]
         corr=None

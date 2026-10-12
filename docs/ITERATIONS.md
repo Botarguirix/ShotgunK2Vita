@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION13.md](INFORME_ROADMAP_ITERACION13.md).
+Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -16,7 +16,8 @@ Informe actual: [INFORME_ROADMAP_ITERACION13.md](INFORME_ROADMAP_ITERACION13.md)
 | 00.10 | `artifacts/iterations/00.10/` | Input Cache: probado, 17,80 FPS activos; fb_ev corregido en 11 |
 | 00.11 | `artifacts/iterations/00.11/` | GPU confirmada: 18,36FPS; aviso blanco reportado |
 | 00.12 | `artifacts/iterations/00.12/` | Gráficos/audio confirmados;22,18FPS mixtos; toque hero nil corregido en13 |
-| 00.13 | `artifacts/iterations/00.13/` | Draw Budget: guardia táctil, reset de paleta y métricas de entidades; hardware pendiente |
+| 00.13 | `artifacts/iterations/00.13/` | Mejora informada;26,23FPS mixtos; movimiento intermitente en estudio |
+| 00.14 | `artifacts/iterations/00.14/` | Controls and Shadows:controles simplificados, sombras enC y trazas de movimiento |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
@@ -88,3 +89,18 @@ dibujo (~30,23ms) dominan ahora el trabajo. No es30FPS estable en toda la partid
 
 13 corrige hero nil táctil y agrupa pal_rst, con contadores de entidades/sprites.
 14 Entity Profile estudiará rutas dominantes. [Detalles](STATUS_ITERATION13.md).
+
+## Actualización00.14 — Controls and Shadows
+
+28727 muestras activas:26,23FPS mixtos,38,120ms/frame y P95 50,081ms.
+Update7,213ms, draw13,675, present1,721, subida0,609, envíoGXM0,223,
+espera13,145. CPU observado500MHz. Cierre por Exit, sin error Lua en esta sesión.
+Entidades raíz media78,2/máximo279; callbacks de dibujo86,4/máximo326.
+Correlación con draw_ms:entidades0,494, callbacks0,754, sprites0,719; no prueba
+causalidad. No basta para garantizar60FPS en juego:presupuesto16,7ms.
+El log registra82 cambios a Android. Se estudia ese cambio, sin atribuirle por
+sí solo el fallo lógico/visual que describe el usuario.
+
+14 cumple controles simplificados y sombras agrupadas; movimiento/animación
+física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
+[Detalles](STATUS_ITERATION14.md).

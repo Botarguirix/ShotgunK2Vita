@@ -27,9 +27,10 @@ botones, sticks, última ubicación Lua observada por el hook, memoria Lua y
 superficies, estado de workers y progreso/resultado del audio. Los eventos
 anotan cargas de scripts/imágenes y errores. El código Lua con error conserva
 la traza de llamadas en `runtime.log`; los errores Lua recuperables muestran
-una pantalla de parada para poder salir con START+SELECT.
+una pantalla de parada para poder salir con START solo desde00.14.
 
-`session_end=clean` indica salida con START+SELECT. `session_end=lua_error`
+`session_end=menu_exit` indica cierre por Exit. Desde14, `error_exit_start`
+indica cierre de la pantalla de error con START solo. `session_end=lua_error`
 indica un error Lua registrado seguido de salida. La ausencia de `session_end`
 puede indicar crash, cierre forzado o copia incompleta; no demuestra por sí sola
 un fallo de memoria. Un fallo nativo no siempre permite ejecutar más código:
@@ -64,3 +65,6 @@ direcciones del volcado hasta la función/línea del código de esa iteración.
 
 Referencias: [sincronización de archivos VitaSDK](https://docs.vitasdk.org/group__SceFcntlUser.html),
 [ubicación y análisis de cores Vita](https://github.com/xyzz/vita-parse-core).
+
+Desde14:control_state en runtime y move_request/hero_goto/game_rejected_action
+en crash-trace ayudan a distinguir lógica de movimiento y animación.

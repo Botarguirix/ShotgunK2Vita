@@ -1,9 +1,14 @@
 # Roadmap · ShotgunK2Vita
 
-Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION13.md](INFORME_ROADMAP_ITERACION13.md).
+Estado actual:14 Controls and Shadows. Atajos SELECT retirados, frontal sólo
+L1/R1, sombras enC, carga de partidas sucesivas corregida. Desajuste de sprite
+con turno que avanza todavía en investigación; trazas y medición Vita14 pendientes.
 
-Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
+
+Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
+Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md).
+
+Actualizado: 2026-10-12. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
 00.03 es corregir costes evitables, habilitar audio y medir la consola.
 El usuario reportó después error 0x8010113D. La entrega 00.04 corrige los PNG
@@ -187,3 +192,18 @@ dibujo (~30,23ms) dominan ahora el trabajo. No es30FPS estable en toda la partid
 
 13 corrige hero nil táctil y agrupa pal_rst, con contadores de entidades/sprites.
 14 Entity Profile estudiará rutas dominantes. [Detalles](STATUS_ITERATION13.md).
+
+## Actualización00.14 — Controls and Shadows
+
+28727 muestras activas:26,23FPS mixtos,38,120ms/frame y P95 50,081ms.
+Update7,213ms, draw13,675, present1,721, subida0,609, envíoGXM0,223,
+espera13,145. CPU observado500MHz. Cierre por Exit, sin error Lua en esta sesión.
+Entidades raíz media78,2/máximo279; callbacks de dibujo86,4/máximo326.
+Correlación con draw_ms:entidades0,494, callbacks0,754, sprites0,719; no prueba
+causalidad. No basta para garantizar60FPS en juego:presupuesto16,7ms.
+El log registra82 cambios a Android. Se estudia ese cambio, sin atribuirle por
+sí solo el fallo lógico/visual que describe el usuario.
+
+14 cumple controles simplificados y sombras agrupadas; movimiento/animación
+física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
+[Detalles](STATUS_ITERATION14.md).

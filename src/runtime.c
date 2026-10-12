@@ -105,6 +105,14 @@ static int load_vita_script(lua_State *L,const char *path,const char *name){
 }
 static int require_file(lua_State *L) {
     const char *name=luaL_checkstring(L,1);char path[2048];resolve(name,path,sizeof(path));
+    /* safe_require loads into a fresh thread environment. Re-execute there,
+     * rather than returning a result cached in an earlier mode environment. */
+    lua_getfield(L,LUA_REGISTRYINDEX,"sg.root_env");int root_env=lua_rawequal(L,-1,LUA_GLOBALSINDEX);lua_pop(L,1);
+    if(!root_env){
+     logline(path);sg_diag_event("require_scoped",path);
+     if(load_vita_script(L,path,name))return lua_error(L);lua_call(L,0,1);
+     if(lua_isnil(L,-1)){lua_pop(L,1);lua_pushboolean(L,1);}return 1;
+    }
     lua_getfield(L,LUA_REGISTRYINDEX,"sg.loaded");
     lua_getfield(L,-1,path);
     if(!lua_isnil(L,-1))return 1;
@@ -206,6 +214,23 @@ static int remove_save(lua_State *L){const char *name=luaL_checkstring(L,1);if(s
 static int lib_callbacks(lua_State *L,const char *name){lua_getglobal(L,name);if(lua_istable(L,-1)){lua_pushnil(L);while(lua_next(L,-2)){lua_pushvalue(L,-1);lua_call(L,0,0);lua_pop(L,1);}}lua_pop(L,1);return 0;}
 static int shallow_copy(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_newtable(L);lua_pushnil(L);while(lua_next(L,1)){lua_pushvalue(L,-2);lua_pushvalue(L,-2);lua_settable(L,2);lua_pop(L,1);}return 1;}
 static int init_libs(lua_State *L){return lib_callbacks(L,"_lib_init");}
+static double field_num(lua_State *L,int index,const char *name){
+ if(!lua_istable(L,index))return -1;lua_getfield(L,index,name);double v=lua_isnumber(L,-1)?lua_tonumber(L,-1):-1;lua_pop(L,1);return v;
+}
+static int action_call(lua_State *L){
+ int kind=lua_tointeger(L,lua_upvalueindex(2)),n=lua_gettop(L),report=1;
+ if(kind==1){lua_getglobal(L,"hero");report=lua_rawequal(L,1,-1);lua_pop(L,1);}
+ if(report){char detail[160];
+  if(kind==2)snprintf(detail,sizeof(detail),"reason=%s",lua_type(L,1)==LUA_TSTRING?lua_tostring(L,1):"no_message");
+  else snprintf(detail,sizeof(detail),"target=%.0f/%.0f just_check=%d",field_num(L,kind==1?2:1,"px"),field_num(L,kind==1?2:1,"py"),kind==0&&lua_toboolean(L,5));
+  sg_diag_event(kind==0?"move_request":kind==1?"hero_goto":"game_rejected_action",detail);
+ }
+ lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);return lua_gettop(L);
+}
+static void instrument_action(const char *name,int kind){
+ lua_getglobal(state,name);if(!lua_isfunction(state,-1)){lua_pop(state,1);return;}
+ lua_pushinteger(state,kind);lua_pushcclosure(state,action_call,2);lua_setglobal(state,name);
+}
 static int entity_call(lua_State *L){
  int draw=lua_toboolean(L,lua_upvalueindex(2));if(draw)sg_perf.entity_draws++;else sg_perf.entity_updates++;
  int args=lua_gettop(L);lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,args,LUA_MULTRET);return lua_gettop(L);
@@ -249,6 +274,7 @@ int sg_boot(const char *root,FILE *log) {
     lua_pushnil(state);lua_setglobal(state,"debug");lua_pushnil(state);lua_setglobal(state,"dofile");
     lua_pushnil(state);lua_setglobal(state,"loadfile");lua_pushnil(state);lua_setglobal(state,"package");
     lua_newtable(state);lua_setfield(state,LUA_REGISTRYINDEX,"sg.loaded");
+    lua_pushvalue(state,LUA_GLOBALSINDEX);lua_setfield(state,LUA_REGISTRYINDEX,"sg.root_env");
     reg("require",require_file);reg("log",logger);reg("wlog",logger);reg("rlog",logger);reg("print",logger);
     reg("file",file_read);reg("all",all);reg("add",add);reg("del",del);reg("rnd",rnd);reg("irnd",irnd);reg("mid",mid);
     reg("time",timestamp);reg("ls",list);reg("read_gameplay_file",gameplay);
@@ -298,6 +324,7 @@ int sg_boot(const char *root,FILE *log) {
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     sg_ui_reset();reg("ach_unlock",local_notice);
     sg_graphics_fast_api(state);instrument_entity("dre",1);instrument_entity("upe",0);
+    instrument_action("move_hero",0);instrument_action("goto_sq",1);instrument_action("fx_wrong",2);
     logline("_init completed; achievement popup=native; external services=disabled");return 1;
 }
 const char *sg_error(void){return failure;}
@@ -316,4 +343,15 @@ int sg_host_eval(const char *script){
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
 int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;sg_ui_tick();instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
 unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}
+void sg_report_movement(void){
+ if(!state||!output)return;lua_State *L=state;int top=lua_gettop(L);char mode[64];
+ lua_getglobal(L,"ctrl_mode");snprintf(mode,sizeof(mode),"%s",lua_tostring(L,-1)?lua_tostring(L,-1):"none");lua_pop(L,1);
+ lua_getglobal(L,"GAMEPAD");int pad=lua_toboolean(L,-1);lua_pop(L,1);lua_getglobal(L,"TOUCH");int touch=lua_toboolean(L,-1);lua_pop(L,1);
+ lua_getglobal(L,"hero");int hero=lua_gettop(L);double x=field_num(L,hero,"x"),y=field_num(L,hero,"y");int tween=0;
+ if(lua_istable(L,hero)){lua_getfield(L,hero,"twc");tween=lua_toboolean(L,-1);lua_pop(L,1);lua_getfield(L,hero,"sq");}else lua_pushnil(L);
+ double age=field_num(L,hero,"t"),progress=field_num(L,hero,"twc"),duration=field_num(L,hero,"tws"),ex=field_num(L,hero,"ex"),ey=field_num(L,hero,"ey");
+ int sq=lua_gettop(L);double px=field_num(L,sq,"px"),py=field_num(L,sq,"py"),sx=field_num(L,sq,"x"),sy=field_num(L,sq,"y");
+ lua_getglobal(L,"move_cur");int cur=lua_gettop(L);
+ fprintf(output,"control_state mode=%s gamepad=%d touch=%d hero_sq=%.0f/%.0f sprite=%.3f/%.3f square_pos=%.3f/%.3f tween=%d move_target=%.0f/%.0f hero_t=%.0f twc=%.3f tws=%.3f tween_end=%.3f/%.3f\n",mode,pad,touch,px,py,x,y,sx,sy,tween,field_num(L,cur,"px"),field_num(L,cur,"py"),age,progress,duration,ex,ey);lua_settop(L,top);
+}
 void sg_close(void){sg_audio_close();if(state)lua_close(state);state=NULL;sg_graphics_close();}
