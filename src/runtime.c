@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "local_ui.h"
 #include "graphics.h"
 #include "perf.h"
 #include "audio.h"
@@ -91,12 +92,23 @@ static int require_file(lua_State *L) {
     lua_pop(L,1);
     logline(path);
     sg_diag_event("require",path);
-    if(luaL_loadfile(L,path))return lua_error(L);
+    if(!strcmp(name,"code/menu.lua")){
+     FILE *f=fopen(path,"rb");if(!f)return luaL_error(L,"Menu script missing");
+     fseek(f,0,SEEK_END);long size=ftell(f);rewind(f);
+     if(size<0||size>1024*1024){fclose(f);return luaL_error(L,"Menu script size invalid");}
+     char *source=malloc((size_t)size+1);if(!source){fclose(f);return luaL_error(L,"Menu allocation failed");}
+     size_t got=fread(source,1,(size_t)size,f);fclose(f);source[got]=0;
+     char *a=strstr(source,"local str=\"Join our Discord!\""),*b=a?strstr(a,"-- CASTLE"):NULL;
+     if(a&&b){for(char *q=a;q<b;q++)if(*q!='\n'&&*q!='\r')*q=' ';logline("vita_external_links=removed");}
+     else logline("vita_external_links=pattern_not_found");
+     int rc=luaL_loadbuffer(L,source,got,path);free(source);if(rc)return lua_error(L);
+    }else if(luaL_loadfile(L,path))return lua_error(L);
     lua_call(L,0,1);
     if(lua_isnil(L,-1)){lua_pop(L,1);lua_pushboolean(L,1);}
     lua_pushvalue(L,-1);lua_setfield(L,-3,path);
     return 1;
 }
+static int local_notice(lua_State *L){sg_ui_notice(luaL_checkstring(L,1));return 0;}
 static int logger(lua_State *L) {
     for(int i=1;i<=lua_gettop(L);i++) {
         const char *text=lua_tostring(L,i);
@@ -238,6 +250,7 @@ int sg_boot(const char *root,FILE *log) {
     reg("round",roundvalue);
     reg("sgn",signvalue);
     reg("rm",remove_save);
+    reg("url",muted_audio);reg("discord",muted_audio);reg("twitch",muted_audio);
     reg("fb_ev",muted_audio);reg("quit",request_quit);reg("ismobile",false_value);reg("live",false_value);reg("psn",false_value);reg("steam",false_value);
     const char *maths[]={"abs","min","max","sqrt","floor","ceil","sin","cos","tan","atan2","pow","log",NULL};
     for(int i=0;maths[i];i++)if(strcmp(maths[i],"log"))alias(maths[i],"math",maths[i]);
@@ -266,7 +279,8 @@ int sg_boot(const char *root,FILE *log) {
     if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=protected_call(state,0,0);}
     if(!status){index_options(state);lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
-    logline("_init completed");return 1;
+    sg_ui_reset();reg("ach_unlock",local_notice);
+    logline("_init completed; achievement popup=native; external services=disabled");return 1;
 }
 const char *sg_error(void){return failure;}
 int sg_should_quit(void){return quit_requested;}
@@ -282,6 +296,6 @@ int sg_host_eval(const char *script){
 }
 #endif
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
-int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
+int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;sg_ui_tick();instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
 unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}
 void sg_close(void){sg_audio_close();if(state)lua_close(state);state=NULL;sg_graphics_close();}

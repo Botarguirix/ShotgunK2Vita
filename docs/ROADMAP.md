@@ -1,7 +1,7 @@
 # Roadmap · ShotgunK2Vita
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION11.md](INFORME_ROADMAP_ITERACION11.md).
+Informe actual: [INFORME_ROADMAP_ITERACION12.md](INFORME_ROADMAP_ITERACION12.md).
 
 Actualizado: 2026-10-11. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
@@ -162,3 +162,15 @@ asignar DEN.achievements[id]. No falta el desbloqueo, falta la API de analítica
 GPU de 320×180 implementada; regresiones PC/guardado y compilación Vita válidas.
 Hardware pendiente. Próxima 12 Frame Budget: medir GXM y perfilar dibujo/Lua.
 Detalles: [STATUS_ITERATION11.md](STATUS_ITERATION11.md).
+
+## Actualización 00.12 — Frame Budget
+
+6089 muestras activas: 18,36 FPS derivados; media54,479ms, P95 83,382ms.
+Update9,959ms, draw19,240ms, present12,577ms, copy/subida0,639ms,
+envío GXM0,226ms, espera9,339ms. CPU observado500MHz. Exit termina limpio,
+sin traceback Lua. El usuario reporta aviso de logro blanco. El título puede
+rondar55FPS en tramos del log, pero la partida contiene caídas a14–18FPS;
+no es 30/60 estable. Transferencia pequeña funciona; composición aún costosa.
+
+12 optimiza composición, retira enlaces y sustituye aviso conservando logros.
+13 Draw Budget perfilará dibujo/Lua. [Detalles](STATUS_ITERATION12.md).

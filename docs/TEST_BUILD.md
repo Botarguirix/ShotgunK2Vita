@@ -1,8 +1,8 @@
-# Iteración 11 — GPU Presenter (00.11)
+# Iteración 12 — Frame Budget (00.12)
 
 ## Actualizar desde 00.02 / instalación fallida de 00.03
 
-Instalar `artifacts/iterations/00.11/ShotgunK2Vita-iteration11-gpu-presenter.vpk` desde VitaShell sobre el mismo título
+Instalar `artifacts/iterations/00.12/ShotgunK2Vita-iteration12-frame-budget.vpk` desde VitaShell sobre el mismo título
 `SGKV00001`. **Conservar `ux0:data/shotgunk2vita/` y su carpeta `save/`.**
 No hace falta copiar otra vez el APK, `data.sgr` ni el ZIP de datos de 00.02.
 La versión 00.03 incluye el icono del EXE y portada/gate del atlas del juego.
@@ -20,7 +20,7 @@ fallo previo y ahora mantiene/suelta cuatro direcciones de cruceta y stick.
 Falta confirmar ese arreglo en la consola; otros errores siguen siendo posibles.
 
 Las entregas anteriores se conservan en `artifacts/iterations/00.02/` y
-`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.11/`.
+`00.03/`, `00.04/` y `00.05/`; la compilación nueva está en `build-iterations/00.12/`.
 No desinstalar ni borrar datos/saves para aplicar esta actualización.
 
 Si es la primera instalación, extraer `shotgunk2vita-data.zip` y copiar su
@@ -131,3 +131,16 @@ Objetivo siguiente: acercar P95 a 33,3 ms para 30 FPS estables en juego;
 60 necesita 16,7 ms. Sólo lógica+dibujo de esta sesión suman ~29,23 ms:
 60 exige optimizar esas fases, además de la transferencia. 12 Frame Budget
 perfilará las rutas dominantes después de recibir la medición GPU.
+
+## Prueba de00.12
+
+Instalar sobre SGKV00001 conservando ux0:data/shotgunk2vita y save.
+Probar desaparición de enlaces externos, nombre legible del logro al finalizar
+un piso, Códice/Logros tras reiniciar, R1/L1 táctiles, pausa, audio y Exit.
+Medir título y misma partida durante60–120s con mismos relojes; enviar carpeta
+logs/00.12-... completa y captura si el aviso sigue incorrecto.
+
+Próxima13 — Draw Budget: perfilar primitivas y callbacks dominantes en la partida
+una vez cuantificada la reducción real de present_ms. Mantener media/P95,
+controles, audio y estabilidad; no compresión de archivos como sustituto de
+reducir trabajo de dibujo. No HUD propio.

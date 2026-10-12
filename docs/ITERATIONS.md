@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION11.md](INFORME_ROADMAP_ITERACION11.md).
+Informe actual: [INFORME_ROADMAP_ITERACION12.md](INFORME_ROADMAP_ITERACION12.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -14,7 +14,8 @@ Informe actual: [INFORME_ROADMAP_ITERACION11.md](INFORME_ROADMAP_ITERACION11.md)
 | 00.08 | `artifacts/iterations/00.08/` | Disparo aspr y opciones corregidos; doble búfer/RAM y texto optimizado; regresiones PC; Vita pendiente |
 | 00.09 | `artifacts/iterations/00.09/` | Frame Transfer: usuario confirma juego; Exit falla; integridad DMA provoca fallback CPU |
 | 00.10 | `artifacts/iterations/00.10/` | Input Cache: probado, 17,80 FPS activos; fb_ev corregido en 11 |
-| 00.11 | `artifacts/iterations/00.11/` | GPU Presenter: textura y escala GXM, logro local; hardware pendiente |
+| 00.11 | `artifacts/iterations/00.11/` | GPU confirmada: 18,36FPS; aviso blanco reportado |
+| 00.12 | `artifacts/iterations/00.12/` | Frame Budget: composición optimizada, aviso local y enlaces retirados |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
@@ -40,7 +41,7 @@ y referencias de LiveArea. Esto no confirma instalación ni rendimiento en Vita.
 | 09 / 00.09 | Frame Transfer | Probada en Vita: juego confirmado; Exit resuelto en 10; DMA descartado por integridad |
 | 10 / 00.10 | Input Cache | Probada en Vita: caché funciona; fb_ev corregida en 11 |
 | 11 / 00.11 | GPU Presenter | Entrega actual: escalado GXM, logro local; hardware pendiente |
-| 12 / 00.12 | Frame Budget | Plan: perfilar dibujo/Lua, media/P95 y campaña de estabilidad |
+| 12 / 00.12 | Frame Budget | Entrega actual: composición directa, aviso local; hardware pendiente |
 
 09 y 10 tienen entregas independientes. 12 es una etapa propuesta, adaptables a los
 logs siguientes. Las carpetas históricas permanecen intactas. CMake contiene
@@ -61,3 +62,15 @@ asignar DEN.achievements[id]. No falta el desbloqueo, falta la API de analítica
 GPU de 320×180 implementada; regresiones PC/guardado y compilación Vita válidas.
 Hardware pendiente. Próxima 12 Frame Budget: medir GXM y perfilar dibujo/Lua.
 Detalles: [STATUS_ITERATION11.md](STATUS_ITERATION11.md).
+
+## Actualización 00.12 — Frame Budget
+
+6089 muestras activas: 18,36 FPS derivados; media54,479ms, P95 83,382ms.
+Update9,959ms, draw19,240ms, present12,577ms, copy/subida0,639ms,
+envío GXM0,226ms, espera9,339ms. CPU observado500MHz. Exit termina limpio,
+sin traceback Lua. El usuario reporta aviso de logro blanco. El título puede
+rondar55FPS en tramos del log, pero la partida contiene caídas a14–18FPS;
+no es 30/60 estable. Transferencia pequeña funciona; composición aún costosa.
+
+12 optimiza composición, retira enlaces y sustituye aviso conservando logros.
+13 Draw Budget perfilará dibujo/Lua. [Detalles](STATUS_ITERATION12.md).

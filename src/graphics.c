@@ -1,4 +1,5 @@
 #include "graphics.h"
+#include "local_ui.h"
 #include "lauxlib.h"
 #include "perf.h"
 #include "diagnostics.h"
@@ -252,10 +253,24 @@ void sg_present_rows(uint32_t *p,int width,int height,int first,int last){
  int ox=(width-s->w*scale)/2,oy=(height-s->h*scale)/2,overlay=-1,previous=-1;
  uint32_t palette[256];for(int i=0;i<256;i++)palette[i]=colors[displaymap[i]];
  for(int i=0;i<count;i++)if(!strcmp(surfaces[i].key,"hdtext")&&surfaces[i].p)overlay=i;
+ /* Logical-size GPU path: precompute overlay coordinates instead of dividing per pixel. */
+ if(width==s->w&&height==s->h){
+  Surface *o=overlay>=0?&surfaces[overlay]:NULL;int xs[4096];
+  if(o)for(int x=0;x<s->w;x++)xs[x]=x*o->w/s->w;
+  for(int y=first;y<last;y++){
+   const unsigned char *base=s->p+(size_t)y*s->w;
+   const unsigned char *ov=o?o->p+(size_t)(y*o->h/s->h)*o->w:NULL;
+   uint32_t *row=p+(size_t)y*width;
+   if(ov)for(int x=0;x<width;x++){int v=ov[xs[x]];row[x]=palette[v==255?base[x]:v];}
+   else for(int x=0;x<width;x++)row[x]=palette[base[x]];
+   sg_ui_row(row,width,height,y);
+  }
+  return;
+ }
  for(int y=first;y<last;y++){
   uint32_t *row=p+(size_t)y*width;int yy=(y-oy)/scale;
   if(y<oy||yy>=s->h){for(int x=0;x<width;x++)row[x]=palette[0];previous=-1;continue;}
-  if(yy==previous){memcpy(row,row-width,(size_t)width*4);continue;}
+  if(yy==previous){memcpy(row,row-width,(size_t)width*4);sg_ui_row(row,width,height,y);continue;}
   previous=yy;for(int x=0;x<width;x++)row[x]=palette[0];
   Surface *o=overlay>=0?&surfaces[overlay]:NULL;int py=o?yy*o->h/s->h:0;
   for(int x=0;x<s->w;x++){
@@ -263,6 +278,7 @@ void sg_present_rows(uint32_t *p,int width,int height,int first,int last){
    int start=ox+x*scale,end=start+scale;if(start<0)start=0;if(end>width)end=width;
    uint32_t value=palette[c];for(int xx=start;xx<end;xx++)row[xx]=value;
   }
+  sg_ui_row(row,width,height,y);
  }
 }
 void sg_present(uint32_t *p,int width,int height){sg_present_rows(p,width,height,0,height);}
