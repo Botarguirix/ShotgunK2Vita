@@ -15,6 +15,7 @@ Vita13 dio26,23FPS mixtos; el efecto de14 y el fallo físico requieren prueba.
 - [Instalación del VPK 00.14](docs/TEST_BUILD.md)
 - [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
+- [Rutina de optimización y campañas repetidas](docs/OPTIMIZATION_ROUTINE.md)
 - [Controles para Vita](docs/images/controls-vita.png)
 
 No es un port completo. Continúan pendientes fidelidad gráfica, todas las

@@ -4,6 +4,11 @@ Estado actual:14 Controls and Shadows. Atajos SELECT retirados, frontal sólo
 L1/R1, sombras enC, carga de partidas sucesivas corregida. Desajuste de sprite
 con turno que avanza todavía en investigación; trazas y medición Vita14 pendientes.
 
+2026-10-13: [rutina de optimización por pases](OPTIMIZATION_ROUTINE.md) añadida.
+Regresión PC como barrera, mediciones Release por escena y comparación de
+huellas/variación antes de aceptar candidatos. Vita3K tiene arranque confirmado;
+entrada interactiva y aceptación final en consola pendientes.
+
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
 Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md).

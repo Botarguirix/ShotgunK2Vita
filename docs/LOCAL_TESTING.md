@@ -4,6 +4,9 @@ Usamos tres niveles: regresión PC con ASan/UBSan, arranque del VPK ARM en
 Vita3K y comprobación final en PS Vita. Los FPS de PC/emulador no certifican
 rendimiento, consumo ni sincronización en la consola.
 
+Para campañas repetidas y comparación de mejoras, seguir
+[OPTIMIZATION_ROUTINE.md](OPTIMIZATION_ROUTINE.md).
+
 ## Regresión local
 
 En WSL, desde este proyecto: `bash scripts/check_iteration.sh`.
