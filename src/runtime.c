@@ -100,6 +100,15 @@ static int load_vita_script(lua_State *L,const char *path,const char *name){
   const char *prefix="thr_gre = ";char *a=strstr(source,"thr_gre = hero.special and hero.special==\"grenade\" and hero.grenade_ready");
   if(a){a+=strlen(prefix);size_t tail=got-(size_t)(a-source);memmove(a+9,a,tail+1);memcpy(a,"hero and ",9);got+=9;logline("vita_touch_hero_guard=applied");}
   else logline("vita_touch_hero_guard=pattern_not_found");
+  const char *shoot_head="function shoot(wild, sq)";
+  a=strstr(source,shoot_head);
+  if(a){
+   a+=strlen(shoot_head);
+   const char *guard=" if not hero or hero.dead or not hero.sq then return end";
+   size_t n=strlen(guard),tail=got-(size_t)(a-source);
+   memmove(a+n,a,tail+1);memcpy(a,guard,n);got+=n;
+   logline("vita_dead_shot_guard=applied");
+  }else logline("vita_dead_shot_guard=pattern_not_found");
  }
  char chunk[2050];snprintf(chunk,sizeof(chunk),"@%s",path);int rc=luaL_loadbuffer(L,source,got,chunk);free(source);return rc;
 }
@@ -144,10 +153,32 @@ static int file_read(lua_State *L) {
     size_t got=fread(data,1,(size_t)size,f);fclose(f);
     lua_pushlstring(L,data,got);free(data);return 1;
 }
-static int add(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);int n=(int)lua_objlen(L,1)+1;int pos=luaL_optint(L,3,n);for(int i=n;i>pos;i--){lua_rawgeti(L,1,i-1);lua_rawseti(L,1,i);}lua_pushvalue(L,2);lua_rawseti(L,1,pos);lua_pushvalue(L,2);return 1;}
-static int del(lua_State *L){int n=(int)lua_objlen(L,1);for(int i=1;i<=n;i++){lua_rawgeti(L,1,i);int same=lua_equal(L,-1,2);lua_pop(L,1);if(same){for(int j=i;j<n;j++){lua_rawgeti(L,1,j+1);lua_rawseti(L,1,j);}lua_pushnil(L);lua_rawseti(L,1,n);lua_pushvalue(L,2);return 1;}}return 0;}
-static int iterator(lua_State *L){int i=lua_tointeger(L,lua_upvalueindex(2))+1;lua_pushinteger(L,i);lua_replace(L,lua_upvalueindex(2));lua_rawgeti(L,lua_upvalueindex(1),i);return 1;}
-static int all(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_pushvalue(L,1);lua_pushinteger(L,0);lua_pushcclosure(L,iterator,2);return 1;}
+/* all() cursors follow array shifts performed by add/del. A closure owns its
+ * userdata; __gc unlinks abandoned loops. Finished loops unlink immediately,
+ * keeping mutation cost proportional to currently active loops. */
+typedef struct AllCursor {const void *table;int index,linked;struct AllCursor *prev,*next;} AllCursor;
+static AllCursor *all_cursors;
+static void cursor_unlink(AllCursor *c){
+ if(!c->linked)return;
+ if(c->prev)c->prev->next=c->next;else all_cursors=c->next;
+ if(c->next)c->next->prev=c->prev;
+ c->linked=0;c->prev=c->next=NULL;
+}
+static int cursor_gc(lua_State *L){cursor_unlink(lua_touserdata(L,1));return 0;}
+static void cursor_shift(lua_State *L,int pos,int delta){
+ const void *table=lua_topointer(L,1);
+ for(AllCursor*c=all_cursors;c;c=c->next)if(c->table==table&&c->index>=pos)c->index+=delta;
+}
+static int add(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);int n=(int)lua_objlen(L,1)+1;int pos=luaL_optint(L,3,n);for(int i=n;i>pos;i--){lua_rawgeti(L,1,i-1);lua_rawseti(L,1,i);}lua_pushvalue(L,2);lua_rawseti(L,1,pos);cursor_shift(L,pos,1);lua_pushvalue(L,2);return 1;}
+static int del(lua_State *L){int n=(int)lua_objlen(L,1);for(int i=1;i<=n;i++){lua_rawgeti(L,1,i);int same=lua_equal(L,-1,2);lua_pop(L,1);if(same){for(int j=i;j<n;j++){lua_rawgeti(L,1,j+1);lua_rawseti(L,1,j);}lua_pushnil(L);lua_rawseti(L,1,n);cursor_shift(L,i,-1);lua_pushvalue(L,2);return 1;}}return 0;}
+static int iterator(lua_State *L){AllCursor*c=lua_touserdata(L,lua_upvalueindex(2));lua_rawgeti(L,lua_upvalueindex(1),++c->index);if(lua_isnil(L,-1))cursor_unlink(c);return 1;}
+static int all(lua_State *L){
+ luaL_checktype(L,1,LUA_TTABLE);lua_pushvalue(L,1);
+ AllCursor*c=lua_newuserdata(L,sizeof(*c));memset(c,0,sizeof(*c));c->table=lua_topointer(L,1);
+ if(luaL_newmetatable(L,"sg.all_cursor")){lua_pushcfunction(L,cursor_gc);lua_setfield(L,-2,"__gc");}
+ lua_setmetatable(L,-2);c->linked=1;c->next=all_cursors;if(all_cursors)all_cursors->prev=c;all_cursors=c;
+ lua_pushcclosure(L,iterator,2);return 1;
+}
 static int rnd(lua_State *L){if(lua_istable(L,1)){int len=(int)lua_objlen(L,1);if(!len){lua_pushnil(L);return 1;}lua_rawgeti(L,1,1+rand()%len);return 1;}double n=luaL_optnumber(L,1,1);lua_pushnumber(L,(rand()/(RAND_MAX+1.0))*n);return 1;}
 static int irnd(lua_State *L){lua_pushinteger(L,(int)floor((rand()/(RAND_MAX+1.0))*luaL_checknumber(L,1)));return 1;}
 static int mid(lua_State *L){double a=luaL_checknumber(L,1),b=luaL_checknumber(L,2),c=luaL_checknumber(L,3);lua_pushnumber(L,fmax(fmin(a,b),fmin(fmax(a,b),c)));return 1;}

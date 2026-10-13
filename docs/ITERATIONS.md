@@ -1,7 +1,7 @@
 # Entregas locales por iteración
 
 Proceso de futuras entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md).
+Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md).
 
 | Versión | Carpeta | Estado |
 |---|---|---|
@@ -18,6 +18,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md)
 | 00.12 | `artifacts/iterations/00.12/` | Gráficos/audio confirmados;22,18FPS mixtos; toque hero nil corregido en13 |
 | 00.13 | `artifacts/iterations/00.13/` | Mejora informada;26,23FPS mixtos; movimiento intermitente en estudio |
 | 00.14 | `artifacts/iterations/00.14/` | Controls and Shadows:controles simplificados, sombras enC y trazas de movimiento |
+| 00.15 | `artifacts/iterations/00.15/` | Game Over Recovery: eliminación durante all y protección de disparo tras morir; prueba física pendiente |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.

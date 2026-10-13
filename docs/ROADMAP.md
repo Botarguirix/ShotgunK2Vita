@@ -1,8 +1,9 @@
 # Roadmap · ShotgunK2Vita
 
-Estado actual:14 Controls and Shadows. Atajos SELECT retirados, frontal sólo
-L1/R1, sombras enC, carga de partidas sucesivas corregida. Desajuste de sprite
-con turno que avanza todavía en investigación; trazas y medición Vita14 pendientes.
+Estado actual:15 Game Over Recovery. El error tras morir de v14 fue reproducido
+en PC: all omitía controles al eliminarlos. Corrección del iterador y protección
+del disparo tardío; aceptación física15 pendiente. Mantiene controles14 y sombras
+enC. Desajuste de sprite todavía en seguimiento, sin causa completa demostrada.
 
 2026-10-13: [rutina de optimización por pases](OPTIMIZATION_ROUTINE.md) añadida.
 Regresión PC como barrera, mediciones Release por escena y comparación de
@@ -11,7 +12,7 @@ entrada interactiva y aceptación final en consola pendientes.
 
 
 Proceso de entregas: [ITERATION_PROCESS.md](ITERATION_PROCESS.md).
-Informe actual: [INFORME_ROADMAP_ITERACION14.md](INFORME_ROADMAP_ITERACION14.md).
+Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md).
 
 Actualizado: 2026-10-12. El usuario confirmó que 00.02 arranca en Vita OLED,
 pero funciona a 1–3 FPS en todas las pantallas y sin sonido. El objetivo de
