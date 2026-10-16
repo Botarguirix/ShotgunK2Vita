@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.21")
-set(SG_BUILD_NAME "Native Resolution Controls")
+set(SG_BUILD_VERSION "00.22")
+set(SG_BUILD_NAME "Medium Resolution Performance")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)
