@@ -75,7 +75,7 @@ static const char *run_gpu(Config config,FILE *log){
  uint32_t *pixels=malloc(scene_width*scene_height*4),*error_pixels=malloc(WIDTH*HEIGHT*4);
  if(!pixels||!error_pixels){free(pixels);free(error_pixels);return "gpu_staging_error";}
  sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
- sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);
+ sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK,SCE_TOUCH_SAMPLING_STATE_START);
  mkdir("ux0:data/shotgunk2vita",0777);
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d renderer=gpu\n",config.cpu,scePowerGetArmClockFrequency());fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
@@ -91,13 +91,10 @@ static const char *run_gpu(Config config,FILE *log){
  uint64_t flush_time=sg_now_us(),window_time=flush_time,elapsed=0;uint64_t last_end=flush_time;unsigned window_frames=0;char metrics[100]="FPS MEASURING";
  while(1){
   sg_diag_phase(SG_DIAG_INPUT);
-  SceCtrlData pad={0};SceTouchData touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(0,&touch,1);
+  SceCtrlData pad={0};SceTouchData touch={0},back_touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(SCE_TOUCH_PORT_FRONT,&touch,1);sceTouchPeek(SCE_TOUCH_PORT_BACK,&back_touch,1);
   if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
-  for(unsigned i=0;i<touch.reportNum;i++){
-   unsigned shoulder=sg_touch_shoulder(touch.report[i].x,touch.report[i].y);
-   buttons|=shoulder;
-  }
+  for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
   if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
@@ -153,7 +150,7 @@ int main(void){
  SceDisplayFrameBuf frame={sizeof(frame),display_buffers[0],WIDTH,SCE_DISPLAY_PIXELFORMAT_A8B8G8R8,WIDTH,HEIGHT};
  if(log)fprintf(log,"presentation=cached_staging double_buffers=2 resolution=960x544 game_resolution=320x180\n");
  sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
- sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);
+ sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK,SCE_TOUCH_SAMPLING_STATE_START);
  mkdir("ux0:data/shotgunk2vita",0777);
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d clock_rc=%d affinity_rc=%d framebuffer_rc=%d\n",config.cpu,scePowerGetArmClockFrequency(),clock_rc,affinity_rc,framebuffer_rc);fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
@@ -169,20 +166,16 @@ int main(void){
  uint64_t flush_time=sg_now_us(),window_time=flush_time,elapsed=0;uint64_t last_end=flush_time;unsigned window_frames=0;char metrics[100]="FPS MEASURING";
  while(1){
   sg_diag_phase(SG_DIAG_INPUT);
-  SceCtrlData pad={0};SceTouchData touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(0,&touch,1);
+  SceCtrlData pad={0};SceTouchData touch={0},back_touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(SCE_TOUCH_PORT_FRONT,&touch,1);sceTouchPeek(SCE_TOUCH_PORT_BACK,&back_touch,1);
   if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
-  for(unsigned i=0;i<touch.reportNum;i++){
-   unsigned shoulder=sg_touch_shoulder(touch.report[i].x,touch.report[i].y);
-   buttons|=shoulder;
-  }
+  for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
   if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
   uint64_t present_start=sg_now_us();if(running)sg_render_pool_present(pixels,WIDTH,HEIGHT);uint64_t present_end=sg_now_us();SgRenderStats render=sg_render_pool_stats();
   if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)pixels[i]=0xff201018;text(pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(pixels,sg_error(),110);}
-  if(running)touch_buttons(pixels,buttons);
   sg_diag_phase(SG_DIAG_DISPLAY);
   uint64_t copy_start=sg_now_us();sg_copy_frame(&copier,display_buffers[back],pixels,WIDTH*HEIGHT*4,log);uint64_t copy_us=sg_now_us()-copy_start;
   frame.base=display_buffers[back];

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.23")
-set(SG_BUILD_NAME "Performance Resolution Profile")
+set(SG_BUILD_VERSION "00.24")
+set(SG_BUILD_NAME "Rear Touch L1 R1")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)
