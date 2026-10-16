@@ -5,12 +5,13 @@
 
 int main(int argc,char **argv){
  int toggle;unsigned bits;
- assert(sg_touch_shoulder(0,968)==SG_LPAGE);
- assert(sg_touch_shoulder(179,1087)==SG_LPAGE);
- assert(sg_touch_shoulder(1740,968)==SG_RPAGE);
- assert(sg_touch_shoulder(1919,1087)==SG_RPAGE);
- assert(!sg_touch_shoulder(180,968)&&!sg_touch_shoulder(1739,968));
- assert(!sg_touch_shoulder(0,967)&&!sg_touch_shoulder(1920,1087));
+ assert(sg_touch_shoulder(0,968)==0);
+ assert(sg_touch_shoulder(1919,1087)==0);
+ assert(sg_touch_back_shoulder(0,0)==SG_LPAGE);
+ assert(sg_touch_back_shoulder(639,1087)==SG_LPAGE);
+ assert(sg_touch_back_shoulder(1280,0)==SG_RPAGE);
+ assert(sg_touch_back_shoulder(1919,1087)==SG_RPAGE);
+ assert(!sg_touch_back_shoulder(640,544)&&!sg_touch_back_shoulder(1279,544));
  const unsigned pads[]={SG_R,SG_SELECT|SG_R,SG_SELECT|SG_L,SG_SELECT|SG_TRIANGLE,SG_SELECT|SG_SQUARE,SG_SELECT|SG_CIRCLE,SG_SELECT|SG_START};
  for(unsigned i=0;i<sizeof(pads)/sizeof(pads[0]);i++){bits=sg_controls(pads[i],&toggle);assert(bits==pads[i]&&!toggle);}
  assert(sg_touch_shoulder(960,544)==0);
