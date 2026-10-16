@@ -227,3 +227,9 @@ lineal por carácter en Codex y otras pantallas de texto. La salida nativa y los
 controles se conservan. La medición equivalente en Vita3K y OLED sigue pendiente.
 00.28 medirá overdraw/sombras; 00.29 audio/presentación; 00.30 comparará las
 variantes y elegirá la candidata física.
+
+## Actualización 00.28 — Shadow Overdraw Budget
+
+La región de `shpr` se recorta antes de muestrear la máscara cuando queda fuera
+del framebuffer. Se mantienen las pruebas de equivalencia para cámara, clip,
+paleta y máscaras modificadas.

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.27")
-set(SG_BUILD_NAME "Codex Glyph Lookup")
+set(SG_BUILD_VERSION "00.28")
+set(SG_BUILD_NAME "Shadow Overdraw Budget")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)

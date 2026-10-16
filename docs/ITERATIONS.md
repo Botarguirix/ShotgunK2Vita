@@ -21,6 +21,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md)
 | 00.15 | `artifacts/iterations/00.15/` | Game Over Recovery: eliminación durante all y protección de disparo tras morir; prueba física pendiente |
 | 00.26 | `artifacts/iterations/00.26/` | GPU Overlay Cleanup: elimina botones dibujados; rear touch L1/R1; regresión local |
 | 00.27 | `artifacts/iterations/00.27/` | Codex Glyph Lookup: índice O(1) para fuentes bitmap; Vita pendiente |
+| 00.28 | `artifacts/iterations/00.28/` | Shadow Overdraw Budget: recorte previo de sombras fuera de pantalla |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.

@@ -251,7 +251,12 @@ static int shadow_batch(lua_State *L){
  if(!isfinite(inc))return luaL_error(L,"Invalid shadow shade");
  int w=(int)a[2],h=(int)a[3],shade=(int)fmin(8,fmax(1,4+inc));
  Surface *s=&surfaces[sheet],*d=&surfaces[dst];
- for(int dx=0;dx<w;dx++)for(int dy=0;dy<h;dy++){
+ /* Clip the shadow rectangle before sampling the mask. dot() would discard
+    these pixels later, but doing so here avoids source reads and palette work. */
+ int x0=(int)ceil(camx-a[4]),y0=(int)ceil(camy-a[5]);
+ int x1=(int)floor(camx+d->w-a[4]),y1=(int)floor(camy+d->h-a[5]);
+ if(x0<0)x0=0;if(y0<0)y0=0;if(x1>w)x1=w;if(y1>h)y1=h;
+ for(int dx=x0;dx<x1;dx++)for(int dy=y0;dy<y1;dy++){
   int sx=(int)(a[0]+dx),sy=(int)(a[1]+dy);if(sx<0||sy<0||sx>=s->w||sy>=s->h||!screen_pixel(s,sx,sy))continue;
   int wx=(int)(a[4]+dx),wy=(int)(a[5]+dy),x=wx-camx,y=wy-camy;
   int color=x>=0&&y>=0&&x<d->w&&y<d->h?screen_pixel(d,x,y):0,bx=16+color;
