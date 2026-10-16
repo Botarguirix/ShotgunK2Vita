@@ -71,6 +71,7 @@ int sg_render_pool_start(int workers,FILE *log){
         w->thread=sceKernelCreateThread("SG present worker",entry,0x10000100,0x10000,0,
             i==0?SCE_KERNEL_CPU_MASK_USER_1:SCE_KERNEL_CPU_MASK_USER_2,NULL);
         int rc=(w->ready<0||w->done<0||w->thread<0)?-1:sceKernelStartThread(w->thread,sizeof(w),&w);
+        if(rc>=0)sg_diag_thread(i==0?SG_THREAD_RENDER1:SG_THREAD_RENDER2,w->thread);
         if(log)fprintf(log,"render_worker=%d thread=%d ready=%d done=%d start_rc=%d\n",i+1,w->thread,w->ready,w->done,rc);
         if(rc<0){if(w->thread>=0)sceKernelDeleteThread(w->thread);if(w->ready>=0)sceKernelDeleteSema(w->ready);if(w->done>=0)sceKernelDeleteSema(w->done);break;}
 #else
@@ -118,6 +119,7 @@ void sg_render_pool_stop(void){
         Worker *w=&jobs[i];w->quit=1;
 #ifdef SG_VITA
         sceKernelSignalSema(w->ready,1);sceKernelWaitThreadEnd(w->thread,NULL,NULL);
+        sg_diag_thread(i==0?SG_THREAD_RENDER1:SG_THREAD_RENDER2,-1);
         sceKernelDeleteThread(w->thread);sceKernelDeleteSema(w->ready);sceKernelDeleteSema(w->done);
 #else
         sem_post(&w->ready);pthread_join(w->thread,NULL);sem_destroy(&w->ready);sem_destroy(&w->done);

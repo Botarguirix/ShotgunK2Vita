@@ -15,3 +15,5 @@ void sg_diag_memory(unsigned lua_kb, unsigned graphics_kb);
 void sg_diag_audio(unsigned blocks, int rc);
 void sg_diag_worker(unsigned worker, unsigned phase);
 void sg_diag_stop(const char *reason);
+enum {SG_THREAD_MAIN,SG_THREAD_AUDIO,SG_THREAD_RENDER1,SG_THREAD_RENDER2,SG_THREAD_DIAGNOSTICS,SG_THREAD_COUNT};
+void sg_diag_thread(unsigned role,int id);

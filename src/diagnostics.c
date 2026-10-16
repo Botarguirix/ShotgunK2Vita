@@ -30,6 +30,22 @@ static int axes[4], line;
 static unsigned read_event, write_event;
 static unsigned long bytes_written;
 static int last_sync_rc;
+static atomic_int thread_ids[SG_THREAD_COUNT];
+static uint64_t last_device_sync_us,last_thread_snapshot,last_run_clock[SG_THREAD_COUNT];
+void sg_diag_thread(unsigned role,int id){if(role<SG_THREAD_COUNT)atomic_store(&thread_ids[role],id);}
+static void thread_snapshot(void){
+#ifdef SG_VITA
+ static const char*roles[]={"main_lua","audio","compose1","compose2","diagnostics"};
+ uint64_t now=sg_now_us();if(now-last_thread_snapshot<1000000)return;last_thread_snapshot=now;
+ for(unsigned i=0;i<SG_THREAD_COUNT;i++){
+  int id=atomic_load(&thread_ids[i]);if(id<0)continue;
+  SceKernelThreadInfo info={0};info.size=sizeof(info);int rc=sceKernelGetThreadInfo(id,&info);
+  uint64_t raw=0;if(rc>=0)memcpy(&raw,&info.runClocks,sizeof(raw));
+  uint64_t delta=raw>=last_run_clock[i]?raw-last_run_clock[i]:0;last_run_clock[i]=raw;
+  fprintf(trace,"thread role=%s id=%d rc=%d name=%.31s affinity=0x%X last_cpu=%d priority=%d status=0x%X wait_type=%u run_clock_raw=%llu delta_raw=%llu\n",roles[i],id,rc,rc>=0?info.name:"unavailable",info.currentCpuAffinityMask,info.lastExecutedCpuId,info.currentPriority,info.status,info.waitType,(unsigned long long)raw,(unsigned long long)delta);
+ }
+#endif
+}
 
 static int enter(void) { return !atomic_flag_test_and_set_explicit(&guard, memory_order_acquire); }
 static void leave(void) { atomic_flag_clear_explicit(&guard, memory_order_release); }
@@ -48,7 +64,9 @@ static void sync_file(FILE *file) {
 }
 static void device_sync(void) {
 #ifdef SG_VITA
+    uint64_t start=sg_now_us();
     last_sync_rc=sceIoSync("ux0:", 0);
+    last_device_sync_us=sg_now_us()-start;
 #endif
 }
 
@@ -71,6 +89,8 @@ static void checkpoint(void) {
         if (written > 0) bytes_written += (unsigned)written;
         for (unsigned i=0;i<count;i++) { written = fprintf(trace,"%s\n",pending[i]); if(written>0)bytes_written+=(unsigned)written; }
         if (bytes_written >= 16*1024*1024) fprintf(trace,"trace_limit_reached=16MiB; session logs remain available\n");
+        thread_snapshot();
+        fprintf(trace,"previous_device_sync_us=%llu\n",(unsigned long long)last_device_sync_us);
         sync_file(trace);
     }
     device_sync();
@@ -109,6 +129,7 @@ int sg_diag_start(const char *root) {
     atomic_store(&audio_blocks,0); atomic_store(&audio_rc,0); atomic_store(&drops,0);
     for(unsigned i=0;i<3;i++)atomic_store(&workers[i],0);
     read_event=write_event=0; line=0; location[0]=0; memset(axes,0,sizeof(axes)); bytes_written=0;
+    for(unsigned i=0;i<SG_THREAD_COUNT;i++){atomic_store(&thread_ids[i],-1);last_run_clock[i]=0;}last_thread_snapshot=last_device_sync_us=0;
     fprintf(trace,"build=%s session_start=1 checkpoints_ms=250 clean_end_missing_means_unclean_or_forced_exit\n",SG_BUILD_VERSION);
     sync_file(trace);
     snprintf(latest,sizeof(latest),"%s/logs/latest.txt",root);
@@ -118,6 +139,7 @@ int sg_diag_start(const char *root) {
     writer=sceKernelCreateThread("SG diagnostic writer",entry,0x10000110,0x10000,0,SCE_KERNEL_CPU_MASK_USER_1,NULL);
     int rc=writer<0?writer:sceKernelStartThread(writer,0,NULL);
     thread_started=rc>=0;
+    if(thread_started)sg_diag_thread(SG_THREAD_DIAGNOSTICS,writer);
     if(!thread_started&&writer>=0){sceKernelDeleteThread(writer);writer=-1;}
 #else
     thread_started=pthread_create(&writer,NULL,entry,NULL)==0;

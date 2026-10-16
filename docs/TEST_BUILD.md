@@ -1,6 +1,6 @@
-# Iteración15 — Game Over Recovery (00.15)
+# Iteración16 — Half Resolution and Thread Audit (00.16)
 
-Instalar artifacts/iterations/00.15/ShotgunK2Vita-iteration15-game-over-recovery.vpk
+Instalar artifacts/iterations/00.16/ShotgunK2Vita-iteration16-half-resolution-thread-audit.vpk
 con VitaShell sobre SGKV00001. Conservar ux0:data/shotgunk2vita y save.
 No desinstalar ni copiar nuevamente datos/APK/data.sgr. Actualiza el ejecutable.
 Las entregas anteriores permanecen en sus carpetas: [ITERATIONS](ITERATIONS.md).

@@ -38,10 +38,11 @@ static int glyph(const char *s,int x,int y){
 }
 void sg_ui_row(uint32_t *row,int width,int height,int y){
  if(!count)return;int scale=width/320;if(height/180<scale)scale=height/180;if(scale<1)scale=1;
- int ox=(width-320*scale)/2,oy=(height-180*scale)/2,yy=(y-oy)/scale;
+ int small=width<320||height<180;
+ int ox=small?0:(width-320*scale)/2,oy=small?0:(height-180*scale)/2,yy=small?y*180/height:(y-oy)/scale;
  if(y<oy||yy<4||yy>=39)return;
  char first[47]={0},second[47]={0};const char *s=notices[head];size_t n=strlen(s),a=n<46?n:46;memcpy(first,s,a);if(n>46){size_t b=n-46;if(b>46)b=46;memcpy(second,s+46,b);}
- for(int x=0;x<width;x++){int xx=(x-ox)/scale;if(x<ox||xx<16||xx>=304)continue;
+ for(int x=0;x<width;x++){int xx=small?x*320/width:(x-ox)/scale;if(x<ox||xx<16||xx>=304)continue;
   uint32_t color=yy==4||yy==38||xx==16||xx==303?0xffc09070u:0xff201018u;
   if(glyph("LOGRO DESBLOQUEADO",xx-24,yy-8)||glyph(first,xx-24,yy-20)||glyph(second,xx-24,yy-29))color=0xffffffffu;row[x]=color;
  }

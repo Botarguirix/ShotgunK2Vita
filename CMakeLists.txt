@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.15")
-set(SG_BUILD_NAME "Game Over Recovery")
+set(SG_BUILD_VERSION "00.16")
+set(SG_BUILD_NAME "Half Resolution and Thread Audit")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)

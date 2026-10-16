@@ -14,6 +14,9 @@ typedef struct {char key[96];int w,h;unsigned char *p;} Surface;
 static Surface surfaces[MAX_SURFACES];static int count, dst, sheet, gridw=16,gridh=16,camx,camy,ink=4;
 static uint32_t colors[256];static unsigned char mapping[256],displaymap[256],transparent[256];static char data_root[1024];
 static size_t allocated;
+static int output_divisor=1;
+void sg_graphics_set_output_divisor(int divisor){output_divisor=divisor==2?2:1;}
+static int screen_pixel(Surface*s,int x,int y){if(s==surfaces&&output_divisor==2){x&=~1;y&=~1;}return s->p[y*s->w+x];}
 unsigned sg_graphics_memory_kb(void){return (unsigned)(allocated/1024);}
 static int clipx,clipy,clipw=4096,cliph=4096,pattern,pattern_transparent;
 static unsigned short sprite_pattern[256],sprite_pair[256];
@@ -54,7 +57,7 @@ static int load(lua_State *L,const char *filename,const char *key,int use_palett
  if(use_palette)for(int j=0;j<256;j++)colors[j]=0xff000000u|pal[j*4]|pal[j*4+1]<<8|pal[j*4+2]<<16;
  return id;
 }
-static void dot(int x,int y,int c){Surface *s=&surfaces[dst];x-=camx;y-=camy;if(x<clipx||y<clipy||x>=clipx+clipw||y>=clipy+cliph)return;int alt=(pattern>>((y&3)*4+(x&3)))&1;if(alt&&pattern_transparent)return;if(x>=0&&y>=0&&x<s->w&&y<s->h){int value=mapping[(alt?c>>8:c)&255];s->p[y*s->w+x]=blend_table[value][s->p[y*s->w+x]];}}
+static void dot(int x,int y,int c){Surface *s=&surfaces[dst];x-=camx;y-=camy;if(dst==0&&output_divisor==2&&((x|y)&1))return;if(x<clipx||y<clipy||x>=clipx+clipw||y>=clipy+cliph)return;int alt=(pattern>>((y&3)*4+(x&3)))&1;if(alt&&pattern_transparent)return;if(x>=0&&y>=0&&x<s->w&&y<s->h){int value=mapping[(alt?c>>8:c)&255];s->p[y*s->w+x]=blend_table[value][s->p[y*s->w+x]];}}
 static int newsrf(lua_State *L){int id;if(lua_isnumber(L,1)){char key[64];snprintf(key,sizeof(key),"surface%d",count);id=create(L,luaL_optstring(L,3,key),luaL_checkint(L,1),luaL_checkint(L,2));}else{id=load(L,luaL_checkstring(L,1),luaL_optstring(L,2,lua_tostring(L,1)),0);}lua_pushstring(L,surfaces[id].key);return 1;}
 static int palette(lua_State *L){if(lua_gettop(L)){if(lua_istable(L,1)){int n=(int)lua_objlen(L,1);for(int i=0;i<n&&i<256;i++){lua_rawgeti(L,1,i+1);unsigned c=(unsigned)lua_tointeger(L,-1);lua_pop(L,1);colors[i]=0xff000000u|((c>>16)&255)|(c&0xff00)|((c&255)<<16);}}else load(L,luaL_checkstring(L,1),"_palette",1);}lua_newtable(L);for(int i=0;i<256;i++){unsigned c=colors[i];lua_pushinteger(L,((c&255)<<16)|(c&0xff00)|((c>>16)&255));lua_rawseti(L,-2,i+1);}return 1;}
 static int target(lua_State *L){dst=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):0;return 0;}
@@ -80,6 +83,7 @@ static int line(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=l
  * Clip to the destination first, so far-offscreen vertices never create huge
  * loops or overflow the line rasterizer. Coverage includes integer edge pixels. */
 static void triangle_pixel(int x,int y,int c){
+ if(dst==0&&output_divisor==2&&((x|y)&1))return;
  int alt=(pattern>>((y&3)*4+(x&3)))&1;if(alt&&pattern_transparent)return;
  Surface *s=&surfaces[dst];unsigned char *p=s->p+(size_t)y*s->w+x;
  *p=blend_table[mapping[(alt?c>>8:c)&255]][*p];
@@ -143,6 +147,18 @@ static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,
  int right=camx+(clipx+clipw<d->w?clipx+clipw:d->w),bottom=camy+(clipy+cliph<d->h?clipy+cliph:d->h);
  if(dx+x0<left)x0=left-dx;if(dy+y0<top)y0=top-dy;if(dx+x1>right)x1=right-dx;if(dy+y1>bottom)y1=bottom-dy;
  if(x0>=x1||y0>=y1)return;
+ if(dst==0&&output_divisor==2){
+  x0+=(dx+x0-camx)&1;y0+=(dy+y0-camy)&1;
+  for(int y=y0;y<y1;y+=2){
+   int yy=sy+(fy?sh-1-y*sh/dh:y*sh/dh);if(yy<0||yy>=s->h)continue;
+   int ty=dy+y-camy;unsigned char *row=d->p+ty*d->w;
+   for(int x=x0;x<x1;x+=2){
+    int xx=sx+(fx?sw-1-x*sw/dw:x*sw/dw);if(xx<0||xx>=s->w)continue;
+    int c=screen_pixel(s,xx,yy),tx=dx+x-camx;sg_perf.blit_pixels++;
+    if(!transparent[c]){int alt=(sprite_pattern[c]>>((ty&3)*4+(tx&3)))&1;c=mapping[(sprite_pair[c]>>(alt?8:0))&255];row[tx]=blend_identity?c:blend_table[c][row[tx]];}
+   }
+  }return;
+ }
  sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);
  int step=sw/dw,extra=sw%dw,start=x0*sw/dw,startrem=x0*sw%dw;
  for(int y=y0;y<y1;y++){
@@ -151,7 +167,7 @@ static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,
   for(int x=x0;x<x1;x++){
    int xx=sx+(fx?sw-1-q:q);q+=step;rem+=extra;if(rem>=dw){rem-=dw;q++;}
    if(xx<0||xx>=s->w)continue;
-   int c=s->p[yy*s->w+xx],tx=dx+x-camx;
+   int c=screen_pixel(s,xx,yy),tx=dx+x-camx;
    if(!transparent[c]){int alt=(sprite_pattern[c]>>((ty&3)*4+(tx&3)))&1;c=mapping[(sprite_pair[c]>>(alt?8:0))&255];row[tx]=blend_identity?c:blend_table[c][row[tx]];}
   }
  }
@@ -192,7 +208,7 @@ static int circ(lua_State *L){
  return 0;
 }
 static int spr(lua_State *L){int n=luaL_checkint(L,1),cols=surfaces[sheet].w/gridw;if(!cols)return 0;int w=luaL_optint(L,4,1)*gridw,h=luaL_optint(L,5,1)*gridh;blit((n%cols)*gridw,(n/cols)*gridh,w,h,luaL_checkint(L,2),luaL_checkint(L,3),w,h,lua_toboolean(L,6),lua_toboolean(L,7));return 0;}
-static int sget(lua_State *L){Surface *s=&surfaces[sheet];int x=luaL_checkint(L,1),y=luaL_checkint(L,2);lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
+static int sget(lua_State *L){Surface *s=&surfaces[sheet];int x=luaL_checkint(L,1),y=luaL_checkint(L,2);lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?screen_pixel(s,x,y):0);return 1;}
 static int size(lua_State *L){int id=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):dst;lua_pushinteger(L,surfaces[id].w);lua_pushinteger(L,surfaces[id].h);return 2;}
 static int pal(lua_State *L){int n=lua_gettop(L);unsigned char *map=lua_toboolean(L,3)?displaymap:mapping;if(!n){for(int i=0;i<256;i++){mapping[i]=i;displaymap[i]=i;}return 0;}if(lua_isnil(L,1))return 0;if(lua_istable(L,1)){map=lua_toboolean(L,2)?displaymap:mapping;lua_pushnil(L);while(lua_next(L,1)){map[lua_tointeger(L,-2)&255]=lua_tointeger(L,-1)&255;lua_pop(L,1);}}else map[luaL_checkint(L,1)&255]=luaL_checkint(L,2)&255;return 0;}
 static int palette_reset(lua_State *L){
@@ -221,7 +237,7 @@ static int sfillp(lua_State *L){if(!lua_gettop(L)){for(int i=0;i<256;i++){sprite
 static int clip(lua_State *L){clipx=luaL_optint(L,1,0);clipy=luaL_optint(L,2,0);clipw=luaL_optint(L,3,4096);cliph=luaL_optint(L,4,4096);if(lua_toboolean(L,5)){clipx-=camx;clipy-=camy;}return 0;}
 static int rect(lua_State *L){int x=luaL_checkint(L,1),y=luaL_checkint(L,2),x2=luaL_checkint(L,3),y2=luaL_checkint(L,4),c=luaL_optint(L,5,ink);for(int xx=x;xx<=x2;xx++){dot(xx,y,c);dot(xx,y2,c);}for(int yy=y;yy<=y2;yy++){dot(x,yy,c);dot(x2,yy,c);}return 0;}
 static int pset(lua_State *L){dot(luaL_checkint(L,1),luaL_checkint(L,2),luaL_optint(L,3,ink));return 0;}
-static int pget(lua_State *L){Surface *s=&surfaces[dst];int x=luaL_checkint(L,1)-camx,y=luaL_checkint(L,2)-camy;lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?s->p[y*s->w+x]:0);return 1;}
+static int pget(lua_State *L){Surface *s=&surfaces[dst];int x=luaL_checkint(L,1)-camx,y=luaL_checkint(L,2)-camy;lua_pushinteger(L,x>=0&&y>=0&&x<s->w&&y<s->h?screen_pixel(s,x,y):0);return 1;}
 static int shadow_batch(lua_State *L){
  sg_perf.shadow_calls++;
  lua_getglobal(L,"bright");int compatible=lua_rawequal(L,-1,lua_upvalueindex(2));lua_pop(L,1);
@@ -236,10 +252,10 @@ static int shadow_batch(lua_State *L){
  int w=(int)a[2],h=(int)a[3],shade=(int)fmin(8,fmax(1,4+inc));
  Surface *s=&surfaces[sheet],*d=&surfaces[dst];
  for(int dx=0;dx<w;dx++)for(int dy=0;dy<h;dy++){
-  int sx=(int)(a[0]+dx),sy=(int)(a[1]+dy);if(sx<0||sy<0||sx>=s->w||sy>=s->h||!s->p[sy*s->w+sx])continue;
+  int sx=(int)(a[0]+dx),sy=(int)(a[1]+dy);if(sx<0||sy<0||sx>=s->w||sy>=s->h||!screen_pixel(s,sx,sy))continue;
   int wx=(int)(a[4]+dx),wy=(int)(a[5]+dy),x=wx-camx,y=wy-camy;
-  int color=x>=0&&y>=0&&x<d->w&&y<d->h?d->p[y*d->w+x]:0,bx=16+color;
-  int out=bx<s->w&&shade<s->h?s->p[shade*s->w+bx]:0;
+  int color=x>=0&&y>=0&&x<d->w&&y<d->h?screen_pixel(d,x,y):0,bx=16+color;
+  int out=bx<s->w&&shade<s->h?screen_pixel(s,bx,shade):0;
   dot(wx,wy,out);sg_perf.shadow_pixels++;
  }
  return 0;
@@ -262,9 +278,10 @@ static void stamp_mask(const unsigned char *mask,int stride,int w,int h,int x,in
  if(x<left)x0=left-x;if(y<top)y0=top-y;if(x+x1>right)x1=right-x;if(y+y1>bottom)y1=bottom-y;
  if(x0>=x1||y0>=y1)return;
  int value=mapping[c&255],fast=!pattern&&blend_identity;
- for(int yy=y0;yy<y1;yy++){
+ int step=dst==0?output_divisor:1;if(step==2){x0+=(x+x0)&1;y0+=(y+y0)&1;}
+ for(int yy=y0;yy<y1;yy+=step){
   const unsigned char *source=mask+(size_t)yy*stride;unsigned char *row=s->p+(size_t)(y+yy)*s->w+(x+x0);
-  for(int xx=x0;xx<x1;xx++,row++)if(source[xx]>=threshold){if(fast)*row=value;else triangle_pixel(x+xx,y+yy,c);}
+  for(int xx=x0;xx<x1;xx+=step,row+=step)if(source[xx]>=threshold){if(fast)*row=value;else triangle_pixel(x+xx,y+yy,c);}
  }
 }
 static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[current_font];int start=x;const unsigned char *p=(const unsigned char *)str;while(*p){unsigned cp=codepoint(&p);if(cp=='\n'){x=start;y+=f->h;continue;}if(draw&&cp!=' '){if(f->ttf){Glyph *g=cached_glyph(f,cp);if(g->p)stamp_mask(g->p,g->w,g->w,g->h,x+g->ox,y+f->h+g->oy+f->dy,100,c);}else{Surface *s=&surfaces[f->surface];for(int g=0;g<f->glyphs;g++)if(f->cp[g]==cp){stamp_mask(s->p+f->gx[g],s->w,f->gw[g],s->h-1,x,y,1,c);break;}}}x+=advance(f,cp);}return x;}
@@ -272,7 +289,18 @@ static int text(lua_State *L){const char *str=luaL_checkstring(L,1);if(lua_getto
 static int width(lua_State *L){lua_pushinteger(L,drawtext(luaL_checkstring(L,1),0,0,ink,0));return 1;}
 static int bprint(lua_State *L){const char *str=luaL_checkstring(L,1);int start=luaL_checkint(L,2),x=start,y=luaL_checkint(L,3),w=luaL_checkint(L,4),c=luaL_optint(L,5,ink);const unsigned char *p=(const unsigned char *)str;while(*p){const unsigned char *begin=p;unsigned cp=codepoint(&p);int a=advance(&fonts[current_font],cp);if(cp=='\n'||x+a>start+w){x=start;y+=fonts[current_font].h;if(cp=='\n')continue;}char glyph[8]={0};size_t n=(size_t)(p-begin);if(n<sizeof(glyph))memcpy(glyph,begin,n);drawtext(glyph,x,y,c,1);x+=a;}lua_pushinteger(L,y+fonts[current_font].h);return 1;}
 static int fntspec(lua_State *L){Font *f=&fonts[current_font];const char *op=luaL_checkstring(L,1);if(!strcmp(op,"name")){lua_pushstring(L,f->key);return 1;}int *n=!strcmp(op,"dy")?&f->dy:!strcmp(op,"space")?&f->space:&f->h;if(lua_gettop(L)>1)*n=luaL_checkint(L,2);lua_pushinteger(L,*n);return 1;}
-static void reg(lua_State *L,const char *name,lua_CFunction f){lua_pushcfunction(L,f);lua_setglobal(L,name);}
+static int measured_graphics(lua_State*L){
+ lua_CFunction f=lua_tocfunction(L,lua_upvalueindex(1));int group=lua_tointeger(L,lua_upvalueindex(2));
+ sg_perf.gfx_calls[group]++;if(!sg_perf.gfx_sample)return f(L);
+ uint64_t start=sg_now_us();int result=f(L);sg_perf.gfx_us[group]+=sg_now_us()-start;return result;
+}
+static void reg(lua_State *L,const char *name,lua_CFunction f){
+ int group=-1;
+ if(f==sspr||f==spr)group=0;else if(f==asspr||f==aspr)group=1;
+ else if(f==rectfill||f==circle||f==circ||f==tri||f==trifill||f==line||f==rect)group=2;
+ else if(f==text||f==bprint)group=3;
+ lua_pushcfunction(L,f);if(group>=0){lua_pushinteger(L,group);lua_pushcclosure(L,measured_graphics,2);}lua_setglobal(L,name);
+}
 void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(data_root),"%s",root);create(L,"screen",320,180);for(int i=0;i<256;i++){mapping[i]=i;displaymap[i]=i;colors[i]=0xff000000u|(i*0x010101u);}transparent[0]=1;
  for(int i=0;i<256;i++){sprite_pattern[i]=0;sprite_pair[i]=i|(i<<8);}
  for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;
@@ -289,32 +317,34 @@ void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(d
 void sg_present_rows(uint32_t *p,int width,int height,int first,int last){
  Surface *s=&surfaces[0];if(first<0)first=0;if(last>height)last=height;if(first>=last)return;
  if(!s->p||!s->w||!s->h){memset(p+(size_t)first*width,0,(size_t)(last-first)*width*4);return;}
- int scale=width/s->w;if(height/s->h<scale)scale=height/s->h;if(scale<1)scale=1;
- int ox=(width-s->w*scale)/2,oy=(height-s->h*scale)/2,overlay=-1,previous=-1;
+ int rw=(s->w+output_divisor-1)/output_divisor,rh=(s->h+output_divisor-1)/output_divisor;
+ int scale=width/rw;if(height/rh<scale)scale=height/rh;if(scale<1)scale=1;
+ int ox=(width-rw*scale)/2,oy=(height-rh*scale)/2,overlay=-1,previous=-1;
  uint32_t palette[256];for(int i=0;i<256;i++)palette[i]=colors[displaymap[i]];
  for(int i=0;i<count;i++)if(!strcmp(surfaces[i].key,"hdtext")&&surfaces[i].p)overlay=i;
  /* Logical-size GPU path: precompute overlay coordinates instead of dividing per pixel. */
- if(width==s->w&&height==s->h){
+ if(width==rw&&height==rh){
   Surface *o=overlay>=0?&surfaces[overlay]:NULL;int xs[4096];
-  if(o)for(int x=0;x<s->w;x++)xs[x]=x*o->w/s->w;
+  if(o)for(int x=0;x<rw;x++)xs[x]=x*output_divisor*o->w/s->w;
   for(int y=first;y<last;y++){
-   const unsigned char *base=s->p+(size_t)y*s->w;
-   const unsigned char *ov=o?o->p+(size_t)(y*o->h/s->h)*o->w:NULL;
+   const unsigned char *base=s->p+(size_t)(y*output_divisor)*s->w;
+   const unsigned char *ov=o?o->p+(size_t)(y*output_divisor*o->h/s->h)*o->w:NULL;
    uint32_t *row=p+(size_t)y*width;
-   if(ov)for(int x=0;x<width;x++){int v=ov[xs[x]];row[x]=palette[v==255?base[x]:v];}
-   else for(int x=0;x<width;x++)row[x]=palette[base[x]];
+   if(ov)for(int x=0;x<width;x++){int v=ov[xs[x]];row[x]=palette[v==255?base[x*output_divisor]:v];}
+   else for(int x=0;x<width;x++)row[x]=palette[base[x*output_divisor]];
    sg_ui_row(row,width,height,y);
   }
   return;
  }
  for(int y=first;y<last;y++){
   uint32_t *row=p+(size_t)y*width;int yy=(y-oy)/scale;
-  if(y<oy||yy>=s->h){for(int x=0;x<width;x++)row[x]=palette[0];previous=-1;continue;}
+  if(y<oy||yy>=rh){for(int x=0;x<width;x++)row[x]=palette[0];previous=-1;continue;}
   if(yy==previous){memcpy(row,row-width,(size_t)width*4);sg_ui_row(row,width,height,y);continue;}
   previous=yy;for(int x=0;x<width;x++)row[x]=palette[0];
-  Surface *o=overlay>=0?&surfaces[overlay]:NULL;int py=o?yy*o->h/s->h:0;
-  for(int x=0;x<s->w;x++){
-   int c=s->p[yy*s->w+x];if(o){int v=o->p[py*o->w+x*o->w/s->w];if(v!=255)c=v;}
+  Surface *o=overlay>=0?&surfaces[overlay]:NULL;int py=o?yy*output_divisor*o->h/s->h:0;
+  for(int x=0;x<rw;x++){
+   int sx=x*output_divisor,sy=yy*output_divisor;
+   int c=s->p[sy*s->w+sx];if(o){int v=o->p[py*o->w+sx*o->w/s->w];if(v!=255)c=v;}
    int start=ox+x*scale,end=start+scale;if(start<0)start=0;if(end>width)end=width;
    uint32_t value=palette[c];for(int xx=start;xx<end;xx++)row[xx]=value;
   }

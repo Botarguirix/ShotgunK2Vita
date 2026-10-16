@@ -105,3 +105,6 @@ sí solo el fallo lógico/visual que describe el usuario.
 14 cumple controles simplificados y sombras agrupadas; movimiento/animación
 física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
 [Detalles](STATUS_ITERATION14.md).
+
+16. Half Resolution and Thread Audit — divisor reversible, workers GPU y
+métricas de hilos/coste gráfico; aceptación física pendiente.

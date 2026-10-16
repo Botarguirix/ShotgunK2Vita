@@ -213,3 +213,9 @@ sí solo el fallo lógico/visual que describe el usuario.
 14 cumple controles simplificados y sombras agrupadas; movimiento/animación
 física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
 [Detalles](STATUS_ITERATION14.md).
+
+## Actualización 00.16 — Half Resolution and Thread Audit
+
+Divisor de salida reversible, workers GPU configurables y auditoría de afinidad,
+espera y coste gráfico. Vita3K y PC son preparación; FPS y estabilidad se
+aceptan únicamente con una prueba de consola.

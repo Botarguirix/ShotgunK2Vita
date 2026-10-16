@@ -189,6 +189,7 @@ int sg_audio_start(FILE *log){
  if(audio_log)setvbuf(audio_log,NULL,_IOLBF,4096);
  audio_thread=sceKernelCreateThread("SG native audio",audio_entry,0x100000E0,0x20000,0,SCE_KERNEL_CPU_MASK_USER_2,NULL);
  int rc=audio_thread<0?audio_thread:sceKernelStartThread(audio_thread,0,NULL);
+ if(rc>=0)sg_diag_thread(SG_THREAD_AUDIO,audio_thread);
  if(log){fprintf(log,"audio_thread=%d start_rc=%d log=audio.log\n",audio_thread,rc);fflush(log);}
  if(rc<0&&audio_thread>=0){sceKernelDeleteThread(audio_thread);audio_thread=-1;}return rc>=0;
 #else
@@ -206,7 +207,7 @@ void sg_audio_init(lua_State *L,const char *root,FILE *log){
 void sg_audio_close(void){
  atomic_store_explicit(&quit,1,memory_order_release);
 #ifdef SG_VITA
- if(audio_thread>=0){sceKernelWaitThreadEnd(audio_thread,NULL,NULL);sceKernelDeleteThread(audio_thread);audio_thread=-1;}
+ if(audio_thread>=0){sceKernelWaitThreadEnd(audio_thread,NULL,NULL);sg_diag_thread(SG_THREAD_AUDIO,-1);sceKernelDeleteThread(audio_thread);audio_thread=-1;}
 #endif
  close_music();if(audio_log)fclose(audio_log);audio_log=NULL;setup_log=NULL;for(int i=0;i<asset_count;i++)free(assets[i].pcm);memset(assets,0,sizeof(assets));asset_count=0;
  atomic_store(&head,0);atomic_store(&tail,0);atomic_store(&dropped,0);atomic_store(&quit,0);
