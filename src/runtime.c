@@ -180,6 +180,7 @@ static int all(lua_State *L){
  lua_pushcclosure(L,iterator,2);return 1;
 }
 static int rnd(lua_State *L){if(lua_istable(L,1)){int len=(int)lua_objlen(L,1);if(!len){lua_pushnil(L);return 1;}lua_rawgeti(L,1,1+rand()%len);return 1;}double n=luaL_optnumber(L,1,1);lua_pushnumber(L,(rand()/(RAND_MAX+1.0))*n);return 1;}
+static int srnd(lua_State *L){srand((unsigned)luaL_optinteger(L,1,0));return 0;}
 static int irnd(lua_State *L){lua_pushinteger(L,(int)floor((rand()/(RAND_MAX+1.0))*luaL_checknumber(L,1)));return 1;}
 static int mid(lua_State *L){double a=luaL_checknumber(L,1),b=luaL_checknumber(L,2),c=luaL_checknumber(L,3);lua_pushnumber(L,fmax(fmin(a,b),fmin(fmax(a,b),c)));return 1;}
 static int request_quit(lua_State *L){(void)L;quit_requested=1;return 0;}
@@ -307,7 +308,7 @@ int sg_boot(const char *root,FILE *log) {
     lua_newtable(state);lua_setfield(state,LUA_REGISTRYINDEX,"sg.loaded");
     lua_pushvalue(state,LUA_GLOBALSINDEX);lua_setfield(state,LUA_REGISTRYINDEX,"sg.root_env");
     reg("require",require_file);reg("log",logger);reg("wlog",logger);reg("rlog",logger);reg("print",logger);
-    reg("file",file_read);reg("all",all);reg("add",add);reg("del",del);reg("rnd",rnd);reg("irnd",irnd);reg("mid",mid);
+    reg("file",file_read);reg("all",all);reg("add",add);reg("del",del);reg("rnd",rnd);reg("irnd",irnd);reg("srand",srnd);reg("mid",mid);
     reg("time",timestamp);reg("ls",list);reg("read_gameplay_file",gameplay);
     reg("runtime",platform);
     reg("desktop_path",desktop);
