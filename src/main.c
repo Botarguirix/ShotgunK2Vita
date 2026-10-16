@@ -60,7 +60,7 @@ static unsigned input(unsigned v){unsigned out=0;
  return out;}
 typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor;} Config;
 static Config settings(void){
- Config c={444,3,2,1,1,1};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
+ Config c={444,3,2,0,1,1};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
  if(f){char line[128],key[80];int value;while(fgets(line,sizeof(line),f))if(sscanf(line,"%79[^=]=%d",key,&value)==2){
   if(!strcmp(key,"cpu_mhz")&&(value==333||value==444))c.cpu=value;
   if(!strcmp(key,"workers")&&value>=1&&value<=3)c.workers=value;
