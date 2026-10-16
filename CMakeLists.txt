@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.16")
-set(SG_BUILD_NAME "Half Resolution and Thread Audit")
+set(SG_BUILD_VERSION "00.17")
+set(SG_BUILD_NAME "Native Resolution Vita3K Pass")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)
