@@ -3,13 +3,13 @@
 	<sources>
 		<source title_id="SGKV00001" param_sfo_write_time="1791875968" icon_write_time="1791678576" />
 		<source title_id="T075VITA1" param_sfo_write_time="1791779464" icon_write_time="1791779412" />
-		<source title_id="THSV12301" param_sfo_write_time="1792040626" icon_write_time="-1" />
-		<source title_id="VAGV00006" param_sfo_write_time="1791852264" icon_write_time="1791695046" />
+		<source title_id="THSV12301" param_sfo_write_time="1792115316" icon_write_time="-1" />
+		<source title_id="VAGV00006" param_sfo_write_time="1792109136" icon_write_time="1791695048" />
 	</sources>
 	<apps>
 		<app app_ver="0.15" category="gd" content_id="" addcont="SGKV00001" savedata="SGKV00001" parental_level="0" stitle="ShotgunK2Vita - 00.15 Game Over Recovery" title="ShotgunK2Vita - 00.15 Game Over Recovery" title_id="SGKV00001" path="SGKV00001" />
 		<app app_ver="1.99" category="gd" content_id="" addcont="T075VITA1" savedata="T075VITA1" parental_level="0" stitle="Touhou 7.5 Vita - Iteration 95 Selection Geometry" title="Touhou 7.5 Vita - Iteration 95 Selection Geometry" title_id="T075VITA1" path="T075VITA1" />
 		<app app_ver="0.01" category="gd" content_id="" addcont="THSV12301" savedata="THSV12301" parental_level="0" stitle="Touhou123Vita Prototype" title="Touhou123Vita Prototype" title_id="THSV12301" path="THSV12301" />
-		<app app_ver="0.25" category="gd" content_id="" addcont="VAGV00006" savedata="VAGV00006" parental_level="0" stitle="Vagante2Vita" title="Vagante2Vita" title_id="VAGV00006" path="VAGV00006" />
+		<app app_ver="0.26" category="gd" content_id="" addcont="VAGV00006" savedata="VAGV00006" parental_level="0" stitle="Vagante2Vita" title="Vagante2Vita" title_id="VAGV00006" path="VAGV00006" />
 	</apps>
 </apps-cache>
