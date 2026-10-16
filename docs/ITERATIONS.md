@@ -19,6 +19,8 @@ Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md)
 | 00.13 | `artifacts/iterations/00.13/` | Mejora informada;26,23FPS mixtos; movimiento intermitente en estudio |
 | 00.14 | `artifacts/iterations/00.14/` | Controls and Shadows:controles simplificados, sombras enC y trazas de movimiento |
 | 00.15 | `artifacts/iterations/00.15/` | Game Over Recovery: eliminación durante all y protección de disparo tras morir; prueba física pendiente |
+| 00.26 | `artifacts/iterations/00.26/` | GPU Overlay Cleanup: elimina botones dibujados; rear touch L1/R1; regresión local |
+| 00.27 | `artifacts/iterations/00.27/` | Codex Glyph Lookup: índice O(1) para fuentes bitmap; Vita pendiente |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.

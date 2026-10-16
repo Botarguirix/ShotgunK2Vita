@@ -219,3 +219,11 @@ física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
 Divisor de salida reversible, workers GPU configurables y auditoría de afinidad,
 espera y coste gráfico. Vita3K y PC son preparación; FPS y estabilidad se
 aceptan únicamente con una prueba de consola.
+
+## Actualización 00.27 — Codex Glyph Lookup
+
+Las fuentes bitmap usan ahora un índice directo de glifo para evitar el barrido
+lineal por carácter en Codex y otras pantallas de texto. La salida nativa y los
+controles se conservan. La medición equivalente en Vita3K y OLED sigue pendiente.
+00.28 medirá overdraw/sombras; 00.29 audio/presentación; 00.30 comparará las
+variantes y elegirá la candidata física.

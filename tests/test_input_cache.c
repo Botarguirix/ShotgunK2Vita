@@ -7,7 +7,7 @@
 #include <math.h>
 static double value(unsigned b,int x,int touch){
  double v=(b&SG_CROSS)||touch?1:0;
- double left=(128-x)>24?((128-x)-24)/103.0:0;
+ double left=(128-x)>32?((128-x)-32)/95.0:0;
  return left>v?left:v;
 }
 int main(int argc,char **argv){
@@ -37,7 +37,7 @@ int main(int argc,char **argv){
   int x=(seed>>8)&255,touch=(seed>>16)&1;
   double expected=value(b,x,touch),previous=value(pb,px,pt);
   double edge=value((b&SG_CROSS)&&!(pb&SG_CROSS)?SG_CROSS:0,x,touch&&!pt);
-  if(128-px>24)edge=((b&SG_CROSS)&&!(pb&SG_CROSS))||(touch&&!pt)?1:0;
+  if(128-px>32)edge=((b&SG_CROSS)&&!(pb&SG_CROSS))||(touch&&!pt)?1:0;
   char script[512];snprintf(script,sizeof(script),"expect=%.17g;edge=%.17g;release=%s;right=%s",expected,edge,previous>0&&expected==0?"true":"false",b&SG_R?"true":"false");
   ok=sg_host_eval(script)&&sg_step(b,x,128,128,128,touch,160,90);
   update+=sg_perf.update_us;
