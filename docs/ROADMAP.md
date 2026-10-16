@@ -239,3 +239,8 @@ paleta y máscaras modificadas.
 El mezclador evita recorrer frames y canales durante silencio total después de
 procesar comandos. La ruta con música o efectos permanece sin cambios; 00.30
 hará la comparación final de estabilidad y costes.
+
+## Actualización 00.30 — Integrated Performance Candidate
+
+Se integran 00.26–00.29 en una entrega final reversible. 00.30 es la candidata
+recomendada para la OLED; las carpetas anteriores se conservan como rollback.

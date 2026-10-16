@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.29")
-set(SG_BUILD_NAME "Audio Presentation Budget")
+set(SG_BUILD_VERSION "00.30")
+set(SG_BUILD_NAME "Integrated Performance Candidate")
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)
   project(ShotgunK2VitaProbe C)

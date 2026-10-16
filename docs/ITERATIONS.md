@@ -23,6 +23,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md)
 | 00.27 | `artifacts/iterations/00.27/` | Codex Glyph Lookup: índice O(1) para fuentes bitmap; Vita pendiente |
 | 00.28 | `artifacts/iterations/00.28/` | Shadow Overdraw Budget: recorte previo de sombras fuera de pantalla |
 | 00.29 | `artifacts/iterations/00.29/` | Audio Presentation Budget: ruta rápida de silencio en el mezclador |
+| 00.30 | `artifacts/iterations/00.30/` | Integrated Performance Candidate: combinación final para prueba física |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
