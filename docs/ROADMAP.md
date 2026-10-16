@@ -233,3 +233,9 @@ variantes y elegirá la candidata física.
 La región de `shpr` se recorta antes de muestrear la máscara cuando queda fuera
 del framebuffer. Se mantienen las pruebas de equivalencia para cámara, clip,
 paleta y máscaras modificadas.
+
+## Actualización 00.29 — Audio Presentation Budget
+
+El mezclador evita recorrer frames y canales durante silencio total después de
+procesar comandos. La ruta con música o efectos permanece sin cambios; 00.30
+hará la comparación final de estabilidad y costes.

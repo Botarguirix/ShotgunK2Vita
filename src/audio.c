@@ -144,6 +144,9 @@ static int music_sample(int *left,int *right){
 }
 void sg_audio_mix(int16_t *out,unsigned frames){
  commands();
+ int active=decoder_open;
+ if(!active)for(int i=0;i<CHANNELS;i++)if(voices[i].asset>=0){active=1;break;}
+ if(!active){memset(out,0,(size_t)frames*2*sizeof(*out));return;}
  for(unsigned n=0;n<frames;n++){
   int left=0,right=0,l=0,r=0;
   if(music_sample(&l,&r)){float gain=music_gain*assets[music_id].volume*fade_gain;left=(int)(l*gain);right=(int)(r*gain);}
