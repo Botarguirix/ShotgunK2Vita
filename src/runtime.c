@@ -51,7 +51,9 @@ static double evaluate_binding(const Binding *b,int kind){
  if(b->touch&&(kind==2?touch_prev:touched)&&(kind!=1||!touch_prev))value=1;
  for(int axis=0;axis<4;axis++)for(int negative=0;negative<2;negative++)if(b->axis_dirs&(1u<<(axis*2+negative))){
   int sign=negative?-1:1,a=((kind==2?axes_prev[axis]:axes[axis])-128)*sign;
-  if(a>24&&(kind!=1||(axes_prev[axis]-128)*sign<=24)){double v=(a-24)/103.0;if(v>value)value=v;}
+  /* Vita sticks can rest several counts away from 128. Keep that drift out
+   * of menus while retaining a distinct btnp edge for intentional motion. */
+  if(a>32&&(kind!=1||(axes_prev[axis]-128)*sign<=32)){double v=(a-32)/95.0;if(v>value)value=v;}
  }
  return value;
 }
