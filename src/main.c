@@ -36,14 +36,6 @@ static const unsigned char digits[10][7]={
  {31,16,16,30,1,1,30},{14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},{14,17,17,15,1,1,14}};
 static void text_at(uint32_t *p,const char *s,int start_x,int y){int x=start_x;for(;*s&&y<HEIGHT-16;s++){unsigned c=(unsigned char)*s;if(c>='a'&&c<='z')c-=32;if(c=='\n'||x>WIDTH-24){x=start_x;y+=20;if(c=='\n')continue;if(y>=HEIGHT-16)break;}const unsigned char *glyph=c>='A'&&c<='Z'?alphabet[c-'A']:c>='0'&&c<='9'?digits[c-'0']:NULL;if(glyph){for(int yy=0;yy<7;yy++)for(int xx=0;xx<5;xx++)if(glyph[yy]&(1<<(4-xx)))for(int j=0;j<2;j++)for(int i=0;i<2;i++)p[(y+yy*2+j)*WIDTH+x+xx*2+i]=0xffffffffu;}x+=12;}}
 static void text(uint32_t *p,const char *s,int y){text_at(p,s,18,y);}
-static void touch_buttons(uint32_t *p,unsigned buttons){
- const int x[2]={8,880};const unsigned bits[2]={SG_LPAGE,SG_RPAGE};
- for(int b=0;b<2;b++){
-  uint32_t color=(buttons&bits[b])?0xff665044:0xff382820;
-  for(int yy=492;yy<536;yy++)for(int xx=x[b];xx<x[b]+72;xx++)p[yy*WIDTH+xx]=color;
-  text_at(p,b?"R1":"L1",x[b]+24,506);
- }
-}
 static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_CROSS)out|=SG_CROSS;
  if(v&SCE_CTRL_CIRCLE)out|=SG_CIRCLE;

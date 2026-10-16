@@ -41,11 +41,7 @@ int sg_gpu_present(const uint32_t *pixels,int width,int height,unsigned buttons,
  stats->upload_us=sg_now_us()-start;start=sg_now_us();
  vita2d_start_drawing();vita2d_set_clear_color(background);vita2d_clear_screen();
  vita2d_draw_texture_scale(t,0,t==scene?2:0,t==scene?960.0f/width:1,t==scene?540.0f/height:1);
- if(controls)for(int b=0;b<2;b++){
-  int x=b?880:8;unsigned bit=b?SG_RPAGE:SG_LPAGE;
-  vita2d_draw_rectangle(x,492,72,44,(buttons&bit)?0xff665044:0xff382820);
-  vita2d_draw_texture(labels[b],x+24,506);
- }
+ (void)controls;(void)buttons;
  vita2d_end_drawing();vita2d_swap_buffers();stats->submit_us=sg_now_us()-start;
  start=sg_now_us();int rc=sceGxmDisplayQueueFinish();stats->wait_us=sg_now_us()-start;
  return rc>=0;

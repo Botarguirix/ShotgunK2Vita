@@ -44,7 +44,7 @@ debug = out/'debug'
 debug.mkdir()
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita', debug/'ShotgunK2Vita.elf')
 shutil.copy2(source_vpk.parent/'ShotgunK2Vita.map', debug/'ShotgunK2Vita.map')
-(out/'performance.cfg').write_text('cpu_mhz=444\nworkers=3\nrenderer=1\ncopy_mode=2\nprofile=0\nresolution_divisor=2\n',encoding='ascii')
+(out/'performance.cfg').write_text('cpu_mhz=444\nworkers=3\nrenderer=1\ncopy_mode=2\nprofile=0\nresolution_divisor=1\n',encoding='ascii')
 package_performance(out/'ShotgunK2Vita-PerformanceTool.zip')
 diagnostic_tool=out/'ShotgunK2Vita-DiagnosticsTool.zip'
 with zipfile.ZipFile(diagnostic_tool,'w',zipfile.ZIP_DEFLATED) as z:
