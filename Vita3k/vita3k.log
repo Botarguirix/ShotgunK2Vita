@@ -1,0 +1,11 @@
+[18:40:48.851] |I| [config::init_config]: log-level: trace
+[18:40:49.083] |I| [main]: Vita3K v0.2.1 4183-41cac41a
+[18:40:49.083] |I| [main]: OS: Windows 10 Version 22H2
+[18:40:49.083] |I| [main]: CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz | 8 Threads | 3.39 GHz | AVX+ | FMA3
+[18:40:49.083] |I| [main]: Available ram memory: 20419 MiB
+[18:40:49.083] |I| [app::init]: Base path: "C:\Users\Andy PC\Documents\github\shotgunk2vita\vita3k\"
+[18:40:49.083] |I| [app::init]: VitaFS path: "C:\Users\Andy PC\AppData\Roaming\Vita3K\Vita3K\"
+[18:40:49.085] |E| [discordrpc::init]: Failed to initialize Discord Rich Presence, err_code: 4
+[18:40:49.085] |I| [export_library_init_taihen]: taiHEN: HLE module initialized
+[18:40:49.396] |I| [ThemeManager::apply_theme_entry]: Loaded stylesheet 'light' from :/themes/light/light.qss
+[18:40:49.768] |I| [GameCompatibility::on_ver_reply_finished]: DB is up to date (2026-10-15 15:26:13Z)
