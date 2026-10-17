@@ -106,3 +106,7 @@ scripts y recursos, sin cargar esos binarios. Hallazgos:
 La API se implementa a partir de la
 [documentación pública SUGAR](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide).
 Dependencias y licencias: [third_party](third_party/README.md).
+
+## Publicación 00.38
+
+La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
