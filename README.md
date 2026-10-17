@@ -1,14 +1,9 @@
-# ShotgunK2Vita
+# ShotgunKing Vita
 
-Port experimental de Shotgun King a PS Vita. El runtime propio interpreta los
-scripts Lua del APK con Lua 5.1 y una implementación parcial de la API SUGAR.
-El usuario confirmó el arranque de 00.02 en Vita OLED a 1–3 FPS y sin sonido.
+## Publicación 00.38
 
-La versión actual **00.15 — Game Over Recovery** corrige el recorrido de listas
-al eliminar controles y protege disparos pendientes tras morir. El error de
-fin de juego de v14 se reprodujo en PC; validación física15 pendiente. Mantiene
-L1/R1 táctiles, sombras enC y trazas de movimiento. Vita14 dio22,21FPS mixtos;
-el efecto de15 requiere medición de consola.
+La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
+
 
 - [Roadmap y evidencia](docs/ROADMAP.md)
 - [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
@@ -18,10 +13,6 @@ el efecto de15 requiere medición de consola.
 - [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
 - [Rutina de optimización y campañas repetidas](docs/OPTIMIZATION_ROUTINE.md)
 - [Controles para Vita](docs/images/controls-vita.png)
-
-No es un port completo. Continúan pendientes fidelidad gráfica, todas las
-funciones SUGAR, otros modos/cartas, audio avanzado, saves anteriores y CRT.
-Los archivos comerciales del juego se preparan localmente y no se publican.
 
 ## Compilar
 
@@ -107,6 +98,3 @@ La API se implementa a partir de la
 [documentación pública SUGAR](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide).
 Dependencias y licencias: [third_party](third_party/README.md).
 
-## Publicación 00.38
-
-La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
