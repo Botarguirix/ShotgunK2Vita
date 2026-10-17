@@ -244,3 +244,7 @@ hará la comparación final de estabilidad y costes.
 
 Se integran 00.26–00.29 en una entrega final reversible. 00.30 es la candidata
 recomendada para la OLED; las carpetas anteriores se conservan como rollback.
+
+## Actualización 00.38 — Centered Rear Touch and Stick Guard
+
+La nueva pasada reduce activaciones accidentales del touch trasero y filtra el drift del stick. Se mantiene el tablero sin botones dibujados.

@@ -115,3 +115,7 @@ física pendiente de diagnóstico.15 Lua Budget perfilará lo restante.
 
 16. Half Resolution and Thread Audit — divisor reversible, workers GPU y
 métricas de hilos/coste gráfico; aceptación física pendiente.
+
+## Actualización 00.38 — Centered Rear Touch and Stick Guard
+
+Se centran y reducen las zonas traseras L1/R1 y se amplía la banda neutral del stick para evitar deriva al usar granadas. Se mantiene el tablero sin botones dibujados.
