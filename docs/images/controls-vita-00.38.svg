@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+<rect width="1200" height="700" fill="#0e1221"/><style>text{font-family:Segoe UI,Arial,sans-serif;fill:#ffd0ad}.muted{fill:#a9adc2}.box{fill:#20253b;stroke:#646a8e;stroke-width:2}.pink{fill:#ff6791}</style>
+<text x="40" y="55" font-size="38" font-weight="700">ShotgunK2Vita · Controles PS Vita · 00.38</text>
+<text x="42" y="90" class="muted" font-size="20">Touch frontal ignorado · L1/R1 sólo en zonas centrales del touch trasero</text>
+<rect x="250" y="150" width="700" height="300" rx="60" fill="#0a0c12" stroke="#5b5e76" stroke-width="4"/><rect x="395" y="180" width="410" height="210" rx="12" fill="#1a1f31"/><text x="600" y="295" text-anchor="middle" font-size="30" class="muted">TABLERO</text>
+<circle cx="330" cy="360" r="38" fill="#282b39" stroke="#77798e"/><text x="330" y="368" text-anchor="middle" font-size="20">STICK</text><circle cx="870" cy="360" r="38" fill="#282b39" stroke="#77798e"/><text x="870" y="368" text-anchor="middle" font-size="20">AIM</text>
+<rect x="270" y="125" width="120" height="30" rx="8" fill="#4d4e60"/><text x="330" y="147" text-anchor="middle" font-size="18">L1 físico</text><rect x="810" y="125" width="120" height="30" rx="8" fill="#4d4e60"/><text x="870" y="147" text-anchor="middle" font-size="18">R1 físico</text>
+<rect x="40" y="170" width="180" height="90" rx="12" class="box"/><text x="55" y="200" font-size="20" font-weight="700">Cruceta / stick izq.</text><text x="55" y="230" class="muted" font-size="17">Seleccionar destino</text>
+<rect x="980" y="170" width="180" height="90" rx="12" class="box"/><text x="995" y="200" font-size="20" font-weight="700">× / ○ / □ / △</text><text x="995" y="230" class="muted" font-size="17">Mover · cancelar · acción · recargar</text>
+<rect x="40" y="500" width="520" height="130" rx="14" class="box"/><text x="60" y="535" font-size="22" font-weight="700" class="pink">L1 trasero</text><text x="210" y="535" font-size="19">x=520..819 · y=300..787</text><text x="60" y="575" font-size="22" font-weight="700" class="pink">R1 trasero</text><text x="210" y="575" font-size="19">x=1100..1399 · y=300..787</text>
+<rect x="590" y="500" width="570" height="130" rx="14" class="box"/><text x="610" y="535" font-size="20">SELECT: información · START: pausa/salida</text><text x="610" y="575" font-size="20" class="muted">Deadzone stick: 40 · sin touch en tablero</text>
+</svg>
