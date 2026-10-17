@@ -4,15 +4,8 @@
 
 La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
 
+<img width="1200" height="700" alt="image" src="https://github.com/user-attachments/assets/f4385ab2-c8b3-4f96-b9e7-ac9915adc8c3" />
 
-- [Roadmap y evidencia](docs/ROADMAP.md)
-- [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
-- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION15.md)
-- [Instalación del VPK 00.15](docs/TEST_BUILD.md)
-- [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
-- [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
-- [Rutina de optimización y campañas repetidas](docs/OPTIMIZATION_ROUTINE.md)
-- [Controles para Vita](docs/images/controls-vita.png)
 
 ## Compilar
 
