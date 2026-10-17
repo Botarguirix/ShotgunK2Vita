@@ -1,5 +1,5 @@
 # ShotgunKing Vita
-
+OJO TODO ES VIBECODED!!! no toque nada todo lo hizo chatgpt y su rama CODEX alimentandolo de datos a lo bestia!!!!!
 ## Publicación 00.38
 
 La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima de Steam.
