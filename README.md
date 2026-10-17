@@ -4,7 +4,12 @@
 
 La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
 
-<img width="1200" height="700" alt="image" src="https://github.com/user-attachments/assets/f4385ab2-c8b3-4f96-b9e7-ac9915adc8c3" />
+
+
+
+<img width="600" height="350" alt="image" src="https://github.com/user-attachments/assets/f4385ab2-c8b3-4f96-b9e7-ac9915adc8c3" />
+
+
 
 
 ## Compilar
@@ -15,54 +20,6 @@ Requiere VitaSDK, CMake y Linux/WSL. Lua, stb_truetype y dr_mp3 están incluidos
 export VITASDK=/home/bota/vitasdk
 bash scripts/build.sh
 ```
-
-La corrección **00.04** convierte LiveArea a PNG indexados opacos de 8 bits,
-con paleta de 256 entradas, para resolver el error de instalación 0x8010113D.
-El usuario confirma mejora considerable de FPS tras 00.04 y reporta un crasheo.
-**00.05** añade logs por sesión que no se sobrescriben, checkpoints ~250 ms,
-trazas de errores Lua y símbolos nativos. Falta diagnosticar la causa del crash.
-El log recibido identifica una llamada a `delta()` no registrada en la
-repetición del pad. **00.06** añade ese alias de `dt()`; reproduce el error
-anterior y verifica direcciones mantenidas de cruceta/stick en PC.
-
-**00.07** implementa `trifill()` y `tri()` para corregir la parada al usar
-el stick derecho. El recorrido de 5.400 frames pasa en PC con sanitizadores;
-la validación en Vita sigue pendiente. [Diagnóstico y pruebas](docs/STATUS_ITERATION07.md).
-
-**00.08** corrige `aspr()` ausente al disparar y los sliders de opciones,
-añade doble framebuffer con composición en RAM y optimiza dibujo de texto.
-Pasan 6000 frames de disparo/recarga en PC; FPS y parpadeo deben verificarse
-en Vita. [Diagnóstico](docs/STATUS_ITERATION08.md) y [auditoría](docs/STABILITY_AUDIT.md).
-
-Salida: `build-iterations/00.10/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.10. Cada versión usa una carpeta de compilación propia.
-El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
-
-## Preparar datos e imágenes de tu copia
-
-Requiere Python 3.9+ y Pillow. El preparador extrae recursos y scripts;
-no ejecuta las bibliotecas nativas del APK ni el EXE.
-
-```sh
-python3 tools/prepare_data.py /ruta/juego.apk private/game
-python3 tools/prepare_livearea.py /ruta/shotgun_king.exe private/game private/livearea
-```
-
-Compilar después de generar LiveArea. El icono procede de RT_ICON del EXE;
-la portada usa el atlas de título del APK. Si `private/livearea/` no existe,
-la compilación omite ese arte. Cada PNG de datos recibe un `.sgimg` auxiliar.
-Los datos de 00.02 siguen siendo válidos; no funciona copiando sólo `data.sgr`.
-
-```sh
-python3 tools/package_test.py
-```
-
-Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.10/`. Incluye ELF/map con símbolos en `debug/`.
-Cada versión ocupa su propia carpeta y el
-empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
-`save/` de la consola al actualizar únicamente el ejecutable.
-Para actualizar sólo el VPK: `python3 tools/package_test.py --vpk-only`.
 
 ## Pruebas en PC
 
