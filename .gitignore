@@ -21,3 +21,5 @@ third_party/lua-5.1.5/Makefile
 third_party/lua-5.1.5/README
 third_party/lua-5.1.5/HISTORY
 tools/*_once.py
+
+_local/

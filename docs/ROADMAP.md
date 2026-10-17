@@ -244,3 +244,7 @@ hará la comparación final de estabilidad y costes.
 
 Se integran 00.26–00.29 en una entrega final reversible. 00.30 es la candidata
 recomendada para la OLED; las carpetas anteriores se conservan como rollback.
+
+## Actualización 00.33–00.37 — LUAJIT experimental
+
+La rama `experiment/luajit-psvita` contiene cinco builds de compatibilidad para preparar una integración real de LuaJIT. El árbol fuente se conserva como referencia local, sin incluirlo en Git ni mezclarlo con los datos comerciales. El siguiente paso es una integración enlazada y una comparación de scripts; hasta entonces estas entregas mantienen Lua 5.1 y sirven para comprobar instalación, arranque y regresión.
