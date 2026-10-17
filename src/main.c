@@ -36,6 +36,17 @@ static const unsigned char digits[10][7]={
  {31,16,16,30,1,1,30},{14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},{14,17,17,15,1,1,14}};
 static void text_at(uint32_t *p,const char *s,int start_x,int y){int x=start_x;for(;*s&&y<HEIGHT-16;s++){unsigned c=(unsigned char)*s;if(c>='a'&&c<='z')c-=32;if(c=='\n'||x>WIDTH-24){x=start_x;y+=20;if(c=='\n')continue;if(y>=HEIGHT-16)break;}const unsigned char *glyph=c>='A'&&c<='Z'?alphabet[c-'A']:c>='0'&&c<='9'?digits[c-'0']:NULL;if(glyph){for(int yy=0;yy<7;yy++)for(int xx=0;xx<5;xx++)if(glyph[yy]&(1<<(4-xx)))for(int j=0;j<2;j++)for(int i=0;i<2;i++)p[(y+yy*2+j)*WIDTH+x+xx*2+i]=0xffffffffu;}x+=12;}}
 static void text(uint32_t *p,const char *s,int y){text_at(p,s,18,y);}
+static void loading_screen(uint32_t *p){
+ for(int i=0;i<WIDTH*HEIGHT;i++)p[i]=0xff101827u;
+ for(int y=72;y<474;y++)for(int x=96;x<864;x++)p[y*WIDTH+x]=0xff182b45u;
+ for(int x=96;x<864;x++){p[72*WIDTH+x]=0xff4c8dccu;p[473*WIDTH+x]=0xff4c8dccu;}
+ for(int y=72;y<474;y++){p[y*WIDTH+96]=0xff4c8dccu;p[y*WIDTH+863]=0xff4c8dccu;}
+ text_at(p,"SHOTGUN KING",250,150);text_at(p,"VITA EDITION",310,205);
+ text_at(p,"INITIALIZING GAME",250,300);
+ for(int y=348;y<372;y++)for(int x=220;x<740;x++)p[y*WIDTH+x]=0xff0b1524u;
+ for(int y=352;y<368;y++)for(int x=224;x<736;x++)p[y*WIDTH+x]=0xff56b4e9u;
+ text_at(p,"PLEASE WAIT",370,410);
+}
 static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_CROSS)out|=SG_CROSS;
  if(v&SCE_CTRL_CIRCLE)out|=SG_CIRCLE;
@@ -73,7 +84,7 @@ static const char *run_gpu(Config config,FILE *log){
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
  if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
  if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks");sg_perf_extra_header(csv);fflush(csv);}
- memset(error_pixels,0,WIDTH*HEIGHT*4);text(error_pixels,"SHOTGUNK VITA\nLOADING LUA AND GAME DATA",40);
+ loading_screen(error_pixels);
  SgGpuStats gpu={0};
  if(!sg_gpu_present(error_pixels,WIDTH,HEIGHT,0,0,0xff000000,&gpu)){free(pixels);free(error_pixels);if(csv)fclose(csv);return "gpu_startup_error";}
  int running=sg_boot("ux0:data/shotgunk2vita",log);unsigned frames=0;
@@ -148,7 +159,7 @@ int main(void){
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
  if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
  if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks");sg_perf_extra_header(csv);fflush(csv);}
- memset(pixels,0,WIDTH*HEIGHT*4);text(pixels,"SHOTGUNK VITA\nLOADING LUA AND GAME DATA",40);
+ loading_screen(pixels);
  memcpy(display_buffers[0],pixels,WIDTH*HEIGHT*4);
  sceDisplaySetFrameBuf(&frame,SCE_DISPLAY_SETBUF_NEXTFRAME);sceDisplayWaitVblankStart();
  int running=sg_boot("ux0:data/shotgunk2vita",log);unsigned frames=0;

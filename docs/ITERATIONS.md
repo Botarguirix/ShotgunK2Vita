@@ -25,6 +25,7 @@ Informe actual: [INFORME_ROADMAP_ITERACION15.md](INFORME_ROADMAP_ITERACION15.md)
 | 00.29 | `artifacts/iterations/00.29/` | Audio Presentation Budget: ruta rápida de silencio en el mezclador |
 | 00.30 | `artifacts/iterations/00.30/` | Integrated Performance Candidate: combinación final para prueba física |
 | 00.31 | `artifacts/iterations/00.31/` | Integrated Candidate SFO Fix: nombre corto compatible con Vita |
+| 00.32 | `artifacts/iterations/00.32/` | Custom Loading Screen: pantalla propia de arranque |
 
 Los archivos originales de 00.02 y 00.03 permanecen además en `artifacts/`.
 La entrega 00.03 conserva una copia del código publicado en ese momento.
