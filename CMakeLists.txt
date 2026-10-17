@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.37")
-set(SG_BUILD_NAME "LuaJIT Vita Candidate")
+set(SG_BUILD_VERSION "00.38")
+set(SG_BUILD_NAME "Centered Rear Touch and Stick Guard")
 option(SG_LUAJIT_EXPERIMENTAL "Mark the experimental LuaJIT compatibility branch" OFF)
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 if(SG_HOST_PROBE)

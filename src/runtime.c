@@ -53,7 +53,9 @@ static double evaluate_binding(const Binding *b,int kind){
   int sign=negative?-1:1,a=((kind==2?axes_prev[axis]:axes[axis])-128)*sign;
   /* Vita sticks can rest several counts away from 128. Keep that drift out
    * of menus while retaining a distinct btnp edge for intentional motion. */
-  if(a>32&&(kind!=1||(axes_prev[axis]-128)*sign<=32)){double v=(a-32)/95.0;if(v>value)value=v;}
+  /* A slightly wider neutral band suppresses the residual Vita stick drift
+   * that otherwise moves the cursor while selecting a grenade. */
+  if(a>40&&(kind!=1||(axes_prev[axis]-128)*sign<=40)){double v=(a-40)/87.0;if(v>value)value=v;}
  }
  return value;
 }

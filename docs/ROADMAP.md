@@ -248,3 +248,7 @@ recomendada para la OLED; las carpetas anteriores se conservan como rollback.
 ## Actualización 00.33–00.37 — LUAJIT experimental
 
 La rama `experiment/luajit-psvita` contiene cinco builds de compatibilidad para preparar una integración real de LuaJIT. El árbol fuente se conserva como referencia local, sin incluirlo en Git ni mezclarlo con los datos comerciales. El siguiente paso es una integración enlazada y una comparación de scripts; hasta entonces estas entregas mantienen Lua 5.1 y sirven para comprobar instalación, arranque y regresión.
+
+## Actualización 00.38 — Centered Rear Touch and Stick Guard
+
+La nueva pasada reduce activaciones accidentales del touch trasero y filtra el drift del stick. Se mantiene el tablero sin botones dibujados.

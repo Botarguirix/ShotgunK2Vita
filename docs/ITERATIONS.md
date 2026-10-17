@@ -121,3 +121,7 @@ métricas de hilos/coste gráfico; aceptación física pendiente.
 Se creó la rama `experiment/luajit-psvita` y cinco entregas aisladas para medir la ruta de migración a LuaJIT. Estas versiones son puertas de compatibilidad y empaquetado: el runtime que ejecutan todavía es Lua 5.1 embebido, porque enlazar LuaJIT en Vita requiere validar ABI, memoria y FFI antes de cambiar el intérprete del juego. Cada VPK conserva su propio artefacto y puede instalarse como prueba independiente.
 
 33 Build Probe; 34 Compatibility Layer; 35 Script Bootstrap; 36 Runtime Benchmark; 37 Vita Candidate. La candidata final de esta tanda es 00.37; no se atribuyen mejoras de FPS hasta contar con una medición de consola.
+
+## Actualización 00.38 — Centered Rear Touch and Stick Guard
+
+Se centran y reducen las zonas traseras L1/R1 y se amplía la banda neutral del stick para evitar deriva al usar granadas. La prueba de hardware debe comprobar apuntado, granadas, Codex y ambos botones traseros.
