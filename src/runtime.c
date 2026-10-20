@@ -1,4 +1,7 @@
 #include "runtime.h"
+static volatile int sg_fps_limit_value=60;
+void sg_set_fps_limit(int limit){if(limit==30||limit==60)sg_fps_limit_value=limit;}
+int sg_get_fps_limit(void){return sg_fps_limit_value;}
 #include "local_ui.h"
 #include "graphics.h"
 #include "perf.h"
@@ -55,7 +58,7 @@ static double evaluate_binding(const Binding *b,int kind){
    * of menus while retaining a distinct btnp edge for intentional motion. */
   /* A slightly wider neutral band suppresses the residual Vita stick drift
    * that otherwise moves the cursor while selecting a grenade. */
-  if(a>40&&(kind!=1||(axes_prev[axis]-128)*sign<=40)){double v=(a-40)/87.0;if(v>value)value=v;}
+  if(a>48&&(kind!=1||(axes_prev[axis]-128)*sign<=44)){double v=(a-48)/79.0;if(v>value)value=v;}
  }
  return value;
 }
@@ -350,9 +353,17 @@ int sg_boot(const char *root,FILE *log) {
     reg("controls",controls);reg("btn",btn);reg("btnp",btnp);reg("btnr",btnr);reg("btnv",btnv);reg("mouse",mouse);
     reg("rumble",muted_audio);
     sg_audio_init(state,rootpath,output);sg_audio_start(output);
-    lua_sethook(state,limit,LUA_MASKCOUNT,10000);
+    /* Instruction watchdog: LuaJIT pays a measurable cost for dense hooks;
+     * retain safety while sampling less often on the experimental runtime. */
+    lua_sethook(state,limit,LUA_MASKCOUNT,
+#ifdef SG_LUAJIT_EXPERIMENTAL
+        50000
+#else
+        10000
+#endif
+    );
     char path[2048];resolve("code.lua",path,sizeof(path));
-    logline("ShotgunK2Vita Lua 5.1 bootstrap; unsupported APIs stop execution");
+    logline("ShotgunK2Vita LuaJIT bootstrap; unsupported APIs stop execution");
     sg_diag_event("load",path);
     int status=load_vita_script(state,path,"code.lua");if(!status)status=protected_call(state,0,0);
     if(!status){logline("code.lua loaded; invoking _init");lua_getglobal(state,"_init");status=protected_call(state,0,0);}

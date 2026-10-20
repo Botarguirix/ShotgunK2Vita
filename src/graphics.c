@@ -3,6 +3,7 @@
 #include "lauxlib.h"
 #include "perf.h"
 #include "diagnostics.h"
+#include "runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -159,6 +160,16 @@ static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,
    }
   }return;
  }
+ /* Fast path for the common opaque 1:1 sprite copy. */
+ if(dw==sw&&dh==sh&&!fx&&!fy&&!pattern&&blend_identity){
+  for(int y=y0;y<y1;y++){
+   int syy=sy+y;if(syy<0||syy>=s->h)continue;
+   const unsigned char *src=s->p+(size_t)syy*s->w+sx;
+   unsigned char *row=d->p+(size_t)(dy+y-camy)*d->w+(dx+x0-camx);
+   for(int x=x0;x<x1;x++){int c=src[x-x0];if(!transparent[c])row[x-x0]=mapping[c];}
+  }
+  sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);return;
+ }
  sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);
  int step=sw/dw,extra=sw%dw,start=x0*sw/dw,startrem=x0*sw%dw;
  for(int y=y0;y<y1;y++){
@@ -232,6 +243,7 @@ static int palt(lua_State *L){if(!lua_gettop(L)){memset(transparent,0,256);trans
 static int newwin(lua_State *L){create(L,"screen",luaL_checkint(L,2),luaL_checkint(L,3));dst=0;return 0;}
 static int delsrf(lua_State *L){int id=locate(L,luaL_checkstring(L,1));if(id==0)return luaL_error(L,"Cannot delete screen");allocated-=(size_t)surfaces[id].w*surfaces[id].h;free(surfaces[id].p);surfaces[id].p=NULL;surfaces[id].w=surfaces[id].h=0;return 0;}
 static int noop(lua_State *L){(void)L;return 0;}
+static int fpslimit(lua_State *L){if(lua_gettop(L))sg_set_fps_limit(luaL_checkint(L,1));lua_pushinteger(L,sg_get_fps_limit());return 1;}
 static int fillp(lua_State *L){pattern=luaL_optint(L,1,0);pattern_transparent=lua_toboolean(L,2);return 0;}
 static int sfillp(lua_State *L){if(!lua_gettop(L)){for(int i=0;i<256;i++){sprite_pattern[i]=0;sprite_pair[i]=i|(i<<8);}}else{int c=luaL_checkint(L,1)&255;sprite_pattern[c]=luaL_checkint(L,2);sprite_pair[c]=luaL_checkint(L,3);}return 0;}
 static int clip(lua_State *L){clipx=luaL_optint(L,1,0);clipy=luaL_optint(L,2,0);clipw=luaL_optint(L,3,4096);cliph=luaL_optint(L,4,4096);if(lua_toboolean(L,5)){clipx-=camx;clipy-=camy;}return 0;}
@@ -309,7 +321,7 @@ static void reg(lua_State *L,const char *name,lua_CFunction f){
 void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(data_root),"%s",root);create(L,"screen",320,180);for(int i=0;i<256;i++){mapping[i]=i;displaymap[i]=i;colors[i]=0xff000000u|(i*0x010101u);}transparent[0]=1;
  for(int i=0;i<256;i++){sprite_pattern[i]=0;sprite_pair[i]=i|(i<<8);}
  for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;
- reg(L,"newsrf",newsrf);reg(L,"palette",palette);reg(L,"target",target);reg(L,"spritesheet",spritesheet);reg(L,"sprgrid",sprgrid);reg(L,"camera",camera);reg(L,"tcamera",tcamera);reg(L,"cls",cls);reg(L,"color",color);reg(L,"rectfill",rectfill);reg(L,"line",line);reg(L,"circfill",circle);reg(L,"sspr",sspr);reg(L,"asspr",asspr);reg(L,"spr",spr);reg(L,"sget",sget);reg(L,"srfsize",size);reg(L,"pal",pal);reg(L,"palt",palt);reg(L,"newwin",newwin);reg(L,"get_patterns",patterns);reg(L,"winspec",noop);reg(L,"fpslimit",noop);reg(L,"shdrf",noop);
+ reg(L,"newsrf",newsrf);reg(L,"palette",palette);reg(L,"target",target);reg(L,"spritesheet",spritesheet);reg(L,"sprgrid",sprgrid);reg(L,"camera",camera);reg(L,"tcamera",tcamera);reg(L,"cls",cls);reg(L,"color",color);reg(L,"rectfill",rectfill);reg(L,"line",line);reg(L,"circfill",circle);reg(L,"sspr",sspr);reg(L,"asspr",asspr);reg(L,"spr",spr);reg(L,"sget",sget);reg(L,"srfsize",size);reg(L,"pal",pal);reg(L,"palt",palt);reg(L,"newwin",newwin);reg(L,"get_patterns",patterns);reg(L,"winspec",noop);reg(L,"fpslimit",fpslimit);reg(L,"shdrf",noop);
  reg(L,"newfnt",newfont);reg(L,"font",selectfont);reg(L,"strwidth",width);reg(L,"fntspec",fntspec);reg(L,"print",text);
  reg(L,"clip",clip);reg(L,"delsrf",delsrf);reg(L,"fillp",fillp);reg(L,"rect",rect);reg(L,"pset",pset);reg(L,"exe",exe);
  reg(L,"sfillp",sfillp);reg(L,"bprint",bprint);

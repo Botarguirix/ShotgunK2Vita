@@ -61,9 +61,11 @@ static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_START)out|=SG_START;
  if(v&SCE_CTRL_SELECT)out|=SG_SELECT;
  return out;}
-typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor;} Config;
+typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor,fps_limit;} Config;
 static Config settings(void){
- Config c={444,3,2,0,1,1};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
+ /* Safe defaults for the shipped profiling build.  A stale CFG must not
+  * silently disable measurements or revert the requested 500 MHz profile. */
+ Config c={500,3,2,1,1,2,60};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
  if(f){char line[128],key[80];int value;while(fgets(line,sizeof(line),f))if(sscanf(line,"%79[^=]=%d",key,&value)==2){
   if(!strcmp(key,"cpu_mhz")&&(value==333||value==444))c.cpu=value;
   if(!strcmp(key,"workers")&&value>=1&&value<=3)c.workers=value;
@@ -71,6 +73,7 @@ static Config settings(void){
   if(!strcmp(key,"renderer")&&(value==0||value==1))c.renderer=value;
   if(!strcmp(key,"profile"))c.profile=value!=0;
   if(!strcmp(key,"resolution_divisor")&&(value==1||value==2))c.divisor=value;
+  if(!strcmp(key,"fps_limit")&&(value==30||value==60))c.fps_limit=value;
  }fclose(f);}return c;
 }
 static const char *run_gpu(Config config,FILE *log){
@@ -93,12 +96,14 @@ static const char *run_gpu(Config config,FILE *log){
  const char *exit_reason=NULL;
  uint64_t flush_time=sg_now_us(),window_time=flush_time,elapsed=0;uint64_t last_end=flush_time;unsigned window_frames=0;char metrics[100]="FPS MEASURING";
  while(1){
+  uint64_t frame_start=sg_now_us();
   sg_diag_phase(SG_DIAG_INPUT);
   SceCtrlData pad={0};SceTouchData touch={0},back_touch={0};sceCtrlPeekBufferPositive(0,&pad,1);sceTouchPeek(SCE_TOUCH_PORT_FRONT,&touch,1);sceTouchPeek(SCE_TOUCH_PORT_BACK,&back_touch,1);
   if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
   for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
+  /* Front touch is intentionally disabled; rear touch remains L1/R1 above. */
   if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
@@ -113,6 +118,7 @@ static const char *run_gpu(Config config,FILE *log){
   if(end-window_time>=500000){snprintf(metrics,sizeof(metrics),"FPS %u U %u D %u P %u CPU %d W %d",elapsed?(unsigned)(window_frames*1000000ULL/elapsed):0,(unsigned)(sg_perf.update_us/1000),(unsigned)(sg_perf.draw_us/1000),(unsigned)((present_end-present_start)/1000),scePowerGetArmClockFrequency(),workers);window_time=end;window_frames=0;elapsed=0;}
   if(csv)fprintf(csv,"%u,%.3f,%.3f,%.3f,%.3f,%.3f,%llu,%llu,%.3f,%llu,%d,%d,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%llu,%llu,%llu,1,%.3f,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu",frames,sg_perf.update_us/1000.0,sg_perf.draw_us/1000.0,(present_end-present_start)/1000.0,gpu.wait_us/1000.0,frame_duration/1000.0,(unsigned long long)sg_perf.glyph_hits,(unsigned long long)sg_perf.glyph_misses,sg_perf.font_build_us/1000.0,(unsigned long long)sg_perf.blit_pixels,workers,scePowerGetArmClockFrequency(),render.worker_us[0]/1000.0,render.worker_us[1]/1000.0,render.worker_us[2]/1000.0,copy_us/1000.0,running,0,0,(unsigned long long)sg_perf.input_calls,(unsigned long long)sg_perf.input_evaluations,(unsigned long long)sg_perf.input_parses,gpu.submit_us/1000.0, (unsigned long long)sg_perf.entities,(unsigned long long)sg_perf.entity_updates,(unsigned long long)sg_perf.entity_draws,(unsigned long long)sg_perf.palette_resets,(unsigned long long)sg_perf.palette_suppressed,(unsigned long long)sg_perf.sprite_calls,(unsigned long long)sg_perf.shadow_calls,(unsigned long long)sg_perf.shadow_pixels,(unsigned long long)sg_perf.shadow_fallbacks);if(csv)sg_perf_extra_row(csv,config.divisor==2?160:320,config.divisor==2?90:180);
   if(end-flush_time>=250000){if(running)sg_report_movement();if(csv)fflush(csv);sg_diag_memory(sg_lua_memory_kb(),sg_graphics_memory_kb());if(log){fprintf(log,"native_frames=%u running=%d renderer=gpu render_workers=%d upload_us=%llu submit_us=%llu wait_us=%llu lua_kb=%u surface_kb=%u %s\n",frames,running,workers,(unsigned long long)gpu.upload_us,(unsigned long long)gpu.submit_us,(unsigned long long)gpu.wait_us,sg_lua_memory_kb(),sg_graphics_memory_kb(),metrics);fflush(log);}flush_time=end;}
+  uint64_t frame_budget=1000000ULL/(unsigned)sg_get_fps_limit();uint64_t frame_spent=sg_now_us()-frame_start;if(frame_spent<frame_budget)sceKernelDelayThread((unsigned)(frame_budget-frame_spent));
   frames++;
  }
  sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"clean");
@@ -128,8 +134,9 @@ int main(void){
  }
  FILE *log=sg_diag_open("runtime.log");
  if(!log)log=fopen("ux0:data/shotgunk2vita/runtime.log","a");
- if(log){setvbuf(log,NULL,_IOLBF,4096);fprintf(log,"build=performance-%s name=%s hud=removed diagnostics_started=%d session=%s\n",SG_BUILD_VERSION,SG_BUILD_NAME,diagnostic_started,sg_diag_directory());}
- Config config=settings();int old_clock=scePowerGetArmClockFrequency();int clock_rc=scePowerSetArmClockFrequency(config.cpu);
+ Config config=settings();
+ if(log){setvbuf(log,NULL,_IOLBF,4096);fprintf(log,"build=performance-%s name=%s fps_limit=%d hud=removed diagnostics_started=%d session=%s\n",SG_BUILD_VERSION,SG_BUILD_NAME,config.fps_limit,diagnostic_started,sg_diag_directory());}
+ int old_clock=scePowerGetArmClockFrequency();int clock_rc=scePowerSetArmClockFrequency(config.cpu);
  sg_graphics_set_output_divisor(config.divisor);
  sg_diag_thread(SG_THREAD_MAIN,sceKernelGetThreadId());
  int affinity_rc=sceKernelChangeThreadCpuAffinityMask(sceKernelGetThreadId(),SCE_KERNEL_CPU_MASK_USER_0);
@@ -174,6 +181,7 @@ int main(void){
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
   for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
+  /* Front touch is intentionally disabled; rear touch remains L1/R1 above. */
   if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
   if(sg_should_quit()){exit_reason="menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
