@@ -59,7 +59,7 @@ artifacts/iterations/00.NN/
 Las entregas 00.02–00.07 conservan su estructura histórica. Este estándar se
 aplica al siguiente empaquetado; no altera el VPK 00.07 ni sus hashes.
 
-Pruebas PC y emulador: seguir [LOCAL_TESTING.md](LOCAL_TESTING.md).
+Pruebas PC y emulador: seguir [BUILDING.md](BUILDING.md).
 Vita3K complementa la regresión y no sustituye la aceptación en consola.
 Conservar perfiles de prueba separados y no incrementar versión por cambios
 exclusivos en documentación o herramientas de pruebas.

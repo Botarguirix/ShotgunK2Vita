@@ -22,7 +22,7 @@ unsigned sg_graphics_memory_kb(void){return (unsigned)(allocated/1024);}
 static int clipx,clipy,clipw=4096,cliph=4096,pattern,pattern_transparent;
 static unsigned short sprite_pattern[256],sprite_pair[256];
 static unsigned char blend_table[256][256];
-static int blend_identity=1;
+static int blend_identity=1,blend_changed;
 typedef struct{unsigned cp;unsigned char *p;int valid,w,h,ox,oy,advance;} Glyph;
 typedef struct{char key[80];unsigned char *data;stbtt_fontinfo info;float scale;int surface,ttf,dy,h,space;unsigned cp[256];int gx[256],gw[256],glyph_index[256],glyphs;Glyph cache[256];} Font;
 static Font fonts[16];static int fontcount,current_font;
@@ -62,7 +62,13 @@ static void dot(int x,int y,int c){Surface *s=&surfaces[dst];x-=camx;y-=camy;if(
 static int newsrf(lua_State *L){int id;if(lua_isnumber(L,1)){char key[64];snprintf(key,sizeof(key),"surface%d",count);id=create(L,luaL_optstring(L,3,key),luaL_checkint(L,1),luaL_checkint(L,2));}else{id=load(L,luaL_checkstring(L,1),luaL_optstring(L,2,lua_tostring(L,1)),0);}lua_pushstring(L,surfaces[id].key);return 1;}
 static int palette(lua_State *L){if(lua_gettop(L)){if(lua_istable(L,1)){int n=(int)lua_objlen(L,1);for(int i=0;i<n&&i<256;i++){lua_rawgeti(L,1,i+1);unsigned c=(unsigned)lua_tointeger(L,-1);lua_pop(L,1);colors[i]=0xff000000u|((c>>16)&255)|(c&0xff00)|((c&255)<<16);}}else load(L,luaL_checkstring(L,1),"_palette",1);}lua_newtable(L);for(int i=0;i<256;i++){unsigned c=colors[i];lua_pushinteger(L,((c&255)<<16)|(c&0xff00)|((c>>16)&255));lua_rawseti(L,-2,i+1);}return 1;}
 static int target(lua_State *L){dst=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):0;return 0;}
-static int spritesheet(lua_State *L){if(lua_gettop(L))sheet=locate(L,luaL_checkstring(L,1));lua_pushstring(L,surfaces[sheet].key);return 1;}
+static int spritesheet(lua_State *L){
+ if(lua_gettop(L)){
+  const char *key=luaL_checkstring(L,1);
+  if(strcmp(surfaces[sheet].key,key))sheet=locate(L,key);
+ }
+ lua_pushstring(L,surfaces[sheet].key);return 1;
+}
 static int sprgrid(lua_State *L){int w=luaL_optint(L,1,16),h=luaL_optint(L,2,w);if(w<1||h<1||w>4096||h>4096)return luaL_error(L,"Invalid sprite grid");gridw=w;gridh=h;return 0;}
 static int camera(lua_State *L){camx=luaL_optint(L,1,0);camy=luaL_optint(L,2,0);return 0;}
 static int tcamera(lua_State *L){camx+=luaL_checkint(L,1);camy+=luaL_checkint(L,2);return 0;}
@@ -160,20 +166,38 @@ static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,
    }
   }return;
  }
- /* Fast path for the common opaque 1:1 sprite copy. */
- if(dw==sw&&dh==sh&&!fx&&!fy&&!pattern&&blend_identity){
-  for(int y=y0;y<y1;y++){
-   int syy=sy+y;if(syy<0||syy>=s->h)continue;
-   const unsigned char *src=s->p+(size_t)syy*s->w+sx;
-   unsigned char *row=d->p+(size_t)(dy+y-camy)*d->w+(dx+x0-camx);
-   for(int x=x0;x<x1;x++){int c=src[x-x0];if(!transparent[c])row[x-x0]=mapping[c];}
+ /* Fast path for unscaled copies, mirrored or not: a per-call colour table
+  * folds transparent/sprite_pair/mapping, so the inner loop is one lookup.
+  * Same output as the scaled path below (screen_pixel only rounds when the
+  * screen is the sheet at divisor 2). */
+ if(dw==sw&&dh==sh&&(output_divisor==1||sheet!=0)){
+  short lut[2][256];int patterned=0;
+  for(int c=0;c<256;c++){
+   if(transparent[c]){lut[0][c]=lut[1][c]=-1;continue;}
+   lut[0][c]=mapping[sprite_pair[c]&255];lut[1][c]=mapping[(sprite_pair[c]>>8)&255];
+   patterned|=sprite_pattern[c];
   }
-  sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);return;
+  int xa=x0,xb=x1;
+  if(fx){if(sx+sw-1-xa>=s->w)xa=sx+sw-s->w;if(sx+sw-1-(xb-1)<0)xb=sx+sw;}
+  else{if(sx+xa<0)xa=-sx;if(sx+xb>s->w)xb=s->w-sx;}
+  if(xa>=xb)return;
+  for(int y=y0;y<y1;y++){
+   int syy=sy+(fy?sh-1-y:y);if(syy<0||syy>=s->h)continue;
+   int ty=dy+y-camy;const unsigned char *src=s->p+(size_t)syy*s->w+sx;
+   unsigned char *row=d->p+(size_t)ty*d->w+(dx-camx);
+   if(!patterned&&blend_identity&&!fx){for(int x=xa;x<xb;x++){int v=lut[0][src[x]];if(v>=0)row[x]=(unsigned char)v;}continue;}
+   for(int x=xa;x<xb;x++){
+    int c=src[fx?sw-1-x:x],alt=patterned?(sprite_pattern[c]>>((ty&3)*4+((dx+x-camx)&3)))&1:0,v=lut[alt][c];
+    if(v>=0)row[x]=blend_identity?(unsigned char)v:blend_table[v][row[x]];
+   }
+  }
+  sg_perf.blit_pixels+=(uint64_t)(xb-xa)*(y1-y0);return;
  }
  sg_perf.blit_pixels+=(uint64_t)(x1-x0)*(y1-y0);
  int step=sw/dw,extra=sw%dw,start=x0*sw/dw,startrem=x0*sw%dw;
+ int yq=y0*sh/dh,yrem=y0*sh%dh;
  for(int y=y0;y<y1;y++){
-  int yy=sy+(fy?sh-1-y*sh/dh:y*sh/dh);if(yy<0||yy>=s->h)continue;
+  int yy=sy+(fy?sh-1-y*sh/dh:yq);if(yy<0||yy>=s->h){if(!fy){yrem+=sh;if(yrem>=dh){yrem-=dh;yq++;}}continue;}
   int q=start,rem=startrem,ty=dy+y-camy;unsigned char *row=d->p+ty*d->w;
   for(int x=x0;x<x1;x++){
    int xx=sx+(fx?sw-1-q:q);q+=step;rem+=extra;if(rem>=dw){rem-=dw;q++;}
@@ -181,6 +205,7 @@ static void blit(int sx,int sy,int sw,int sh,int dx,int dy,int dw,int dh,int fx,
    int c=screen_pixel(s,xx,yy),tx=dx+x-camx;
    if(!transparent[c]){int alt=(sprite_pattern[c]>>((ty&3)*4+(tx&3)))&1;c=mapping[(sprite_pair[c]>>(alt?8:0))&255];row[tx]=blend_identity?c:blend_table[c][row[tx]];}
   }
+  if(!fy){yrem+=sh;if(yrem>=dh){yrem-=dh;yq++;} }
  }
 }
 static int asspr(lua_State *L){
@@ -277,7 +302,9 @@ static int shadow_batch(lua_State *L){
  }
  return 0;
 }
-static int blend(lua_State *L){if(!lua_gettop(L)){blend_identity=1;for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else {blend_identity=0;blend_table[luaL_checkint(L,1)&255][luaL_checkint(L,2)&255]=luaL_checkint(L,3)&255;}return 0;}
+/* The game "restores" entries with blend(a,b,a) instead of blend(), so count
+ * non-identity entries; otherwise every later blit stays on the slow path. */
+static int blend(lua_State *L){if(!lua_gettop(L)){blend_identity=1;blend_changed=0;for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else {int a=luaL_checkint(L,1)&255,b=luaL_checkint(L,2)&255,v=luaL_checkint(L,3)&255;blend_changed+=(v!=a)-(blend_table[a][b]!=a);blend_table[a][b]=v;blend_identity=!blend_changed;}return 0;}
 static int exe(lua_State *L){int d=dst,s=sheet,cx=camx,cy=camy,p=pattern,tr=pattern_transparent,ic=ink,cx0=clipx,cy0=clipy,cw=clipw,ch=cliph,f=current_font;unsigned char map[256];memcpy(map,mapping,256);lua_pushvalue(L,1);int status=lua_pcall(L,0,0,0);dst=d;sheet=s;camx=cx;camy=cy;pattern=p;pattern_transparent=tr;ink=ic;clipx=cx0;clipy=cy0;clipw=cw;cliph=ch;current_font=f;memcpy(mapping,map,256);if(status)return lua_error(L);return 0;}
 static int patterns(lua_State *L){lua_newtable(L);int x=luaL_checkint(L,1),y=luaL_checkint(L,2),n=luaL_checkint(L,3);for(int i=0;i<n;i++){Surface *s=&surfaces[sheet];int value=0;for(int yy=0;yy<4;yy++)for(int xx=0;xx<4;xx++)if(s->p[(y+yy)*s->w+x+i*4+xx])value|=1<<(yy*4+xx);lua_pushinteger(L,value);lua_rawseti(L,-2,i+1);}return 1;}
 static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=luaL_optstring(L,3,"default");int id;for(id=0;id<fontcount;id++)if(!strcmp(fonts[id].key,key))break;if(id==fontcount){if(fontcount==16)return luaL_error(L,"Font limit");fontcount++;}Font *f=&fonts[id];free_glyphs(f);free(f->data);memset(f,0,sizeof(*f));for(int i=0;i<256;i++)f->glyph_index[i]=-1;snprintf(f->key,sizeof(f->key),"%s",key);f->space=4;f->h=8;
@@ -373,8 +400,20 @@ uint32_t sg_present_background(void){return colors[displaymap[0]];}
 
 void sg_graphics_close(void){for(int i=0;i<count;i++)free(surfaces[i].p);for(int i=0;i<fontcount;i++){free_glyphs(&fonts[i]);free(fonts[i].data);}memset(fonts,0,sizeof(fonts));fontcount=current_font=0;memset(surfaces,0,sizeof(surfaces));count=0;allocated=0;dst=sheet=0;}
 
+/* toolkit.lua apal(n) is `for i=0,#palette() do pal(i,n) end`: a fresh
+ * 256-entry table plus 257 pal calls each time. Same result in one memset,
+ * unless the game has swapped pal/palette (pause layers do), then defer. */
+static int apal_batch(lua_State *L){
+ lua_getglobal(L,"pal");int native=lua_iscfunction(L,-1)&&lua_tocfunction(L,-1)==pal;lua_pop(L,1);
+ lua_getglobal(L,"palette");native=native&&lua_iscfunction(L,-1)&&lua_tocfunction(L,-1)==palette;lua_pop(L,1);
+ if(!native||lua_gettop(L)<1){int n=lua_gettop(L);lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);return lua_gettop(L);}
+ memset(mapping,luaL_checkint(L,1)&255,256);return 0;
+}
 void sg_graphics_fast_api(lua_State *L){
  reg(L,"pal_rst",palette_reset);
+ lua_getglobal(L,"apal");
+ if(lua_isfunction(L,-1)){lua_pushcclosure(L,apal_batch,1);lua_setglobal(L,"apal");}
+ else lua_pop(L,1);
  lua_getglobal(L,"shpr");lua_getglobal(L,"bright");
  if(lua_isfunction(L,-2)&&lua_isfunction(L,-1)){lua_pushcclosure(L,shadow_batch,2);lua_setglobal(L,"shpr");}
  else lua_pop(L,2);

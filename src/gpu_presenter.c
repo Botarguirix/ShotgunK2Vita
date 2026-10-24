@@ -9,7 +9,11 @@ static int scene_width=320,scene_height=180;
 int sg_gpu_init(FILE *log,int divisor){
  int rc=vita2d_init_advanced(256*1024);
  if(rc<=0||!vita2d_get_context()){if(log)fprintf(log,"gpu_init_failed=%d fallback=cpu\n",rc);return 0;}
- initialized=1;vita2d_set_vblank_wait(1);
+ initialized=1;
+ /* main.c paces frames with its own timer.  Waiting
+  * in vita2d_swap_buffers as well serializes the CPU twice and was visible as
+  * a second ~16 ms present stall on Vita. */
+ vita2d_set_vblank_wait(0);
  /* Uncached mapped textures avoid the cache coherency failure seen with DMA. */
  vita2d_texture_set_alloc_memblock_type(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE);
  scene_width=divisor==2?160:320;scene_height=divisor==2?90:180;
@@ -25,8 +29,10 @@ int sg_gpu_present(const uint32_t *pixels,int width,int height,unsigned buttons,
   if(!error_image){error_image=vita2d_create_empty_texture(width,height);if(!error_image)return 0;}
   t=error_image;
  }else if(width!=scene_width||height!=scene_height)return 0;
- /* Last submission has drained before CPU updates this texture. */
- uint64_t start=sg_now_us();int stride=vita2d_texture_get_stride(t);
+ /* Only the GPU read of the previous quad has to finish before the CPU
+  * rewrites this texture; the flip itself may still be queued. */
+ uint64_t start=sg_now_us();vita2d_wait_rendering_done();stats->wait_us=sg_now_us()-start;
+ start=sg_now_us();int stride=vita2d_texture_get_stride(t);
  unsigned char *dst=vita2d_texture_get_datap(t);
  for(int y=0;y<height;y++)memcpy(dst+y*stride,pixels+y*width,width*4);
  stats->upload_us=sg_now_us()-start;start=sg_now_us();
@@ -34,8 +40,7 @@ int sg_gpu_present(const uint32_t *pixels,int width,int height,unsigned buttons,
  vita2d_draw_texture_scale(t,0,t==scene?2:0,t==scene?960.0f/width:1,t==scene?540.0f/height:1);
  (void)controls;(void)buttons;
  vita2d_end_drawing();vita2d_swap_buffers();stats->submit_us=sg_now_us()-start;
- start=sg_now_us();int rc=sceGxmDisplayQueueFinish();stats->wait_us=sg_now_us()-start;
- return rc>=0;
+ return 1;
 }
 void sg_gpu_close(void){
  if(!initialized)return;

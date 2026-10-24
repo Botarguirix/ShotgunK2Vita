@@ -1,0 +1,2 @@
+# Image preparation / Preparación de imágenes
+Pillow>=10.0

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-set(SG_BUILD_VERSION "00.53")
-set(SG_BUILD_NAME "LuaJIT Runtime FPS Limiter")
+set(SG_BUILD_VERSION "00.78")
+set(SG_BUILD_NAME "Shotgun King Vita+")
 option(SG_LUAJIT_EXPERIMENTAL "Mark the experimental LuaJIT compatibility branch" OFF)
 option(SG_HOST_PROBE "Build a desktop Lua bootstrap probe" OFF)
 option(SG_LUAJIT_PROBE "Build isolated LuaJIT probe" OFF)

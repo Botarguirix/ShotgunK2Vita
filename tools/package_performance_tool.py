@@ -16,7 +16,7 @@ def package(output):
         for name,values in PRESETS.items():
             z.writestr('presets/'+name+'.cfg',''.join(f'{k}={v}\n' for k,v in values.items()))
         z.write(root/'docs/PERFORMANCE_TOOL.md','PERFORMANCE_TOOL.md')
-        z.write(root/'docs/images/controls-vita.png','controls-vita.png')
+        z.write(root/'docs/INSTALLATION.md','INSTALLATION.md')
     with zipfile.ZipFile(output) as z: assert z.testzip() is None
     return output
 

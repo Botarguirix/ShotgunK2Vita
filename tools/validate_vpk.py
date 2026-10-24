@@ -67,7 +67,7 @@ def validate(path, require_art=False):
             raise ValueError('Duplicate VPK entries')
         archive.read('eboot.bin')
         sfo = sfo_info(archive.read('sce_sys/param.sfo'))
-        if sfo.get('TITLE_ID') != 'SGKV00001':
+        if sfo.get('TITLE_ID') not in {'SGKV00001', 'SGK550001'}:
             raise ValueError('Unexpected title ID')
         images = {}
         template = 'sce_sys/livearea/contents/template.xml'

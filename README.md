@@ -1,112 +1,51 @@
-# ShotgunK2Vita
+# Shotgun King Vita+ · ShotgunK2Vita
 
-Port experimental de Shotgun King a PS Vita. El runtime propio interpreta los
-scripts Lua del APK con Lua 5.1 y una implementación parcial de la API SUGAR.
-El usuario confirmó el arranque de 00.02 en Vita OLED a 1–3 FPS y sin sonido.
+[Español](#español) · [English](#english)
 
-La versión actual **00.15 — Game Over Recovery** corrige el recorrido de listas
-al eliminar controles y protege disparos pendientes tras morir. El error de
-fin de juego de v14 se reprodujo en PC; validación física15 pendiente. Mantiene
-L1/R1 táctiles, sombras enC y trazas de movimiento. Vita14 dio22,21FPS mixtos;
-el efecto de15 requiere medición de consola.
+## Español
 
-- [Roadmap y evidencia](docs/ROADMAP.md)
-- [Proceso estándar de iteraciones](docs/ITERATION_PROCESS.md)
-- [Informe de la iteración actual](docs/INFORME_ROADMAP_ITERACION15.md)
-- [Instalación del VPK 00.15](docs/TEST_BUILD.md)
-- [Recuperar logs tras un crasheo](docs/CRASH_LOGS.md)
-- [Herramienta de rendimiento](docs/PERFORMANCE_TOOL.md)
-- [Rutina de optimización y campañas repetidas](docs/OPTIMIZATION_ROUTINE.md)
-- [Controles para Vita](docs/images/controls-vita.png)
+**Shotgun King Vita+** es un proyecto homebrew experimental que adapta Shotgun King a PlayStation Vita mediante un runtime propio en C y una implementación parcial de la API SUGAR. Ejecuta scripts Lua y recursos preparados desde una copia del usuario; no carga los binarios originales de Android o Windows.
 
-No es un port completo. Continúan pendientes fidelidad gráfica, todas las
-funciones SUGAR, otros modos/cartas, audio avanzado, saves anteriores y CRT.
-Los archivos comerciales del juego se preparan localmente y no se publican.
+**Versión actual: 00.78 — Shotgun King Vita+** · ID: `SGKV00001`.
 
-## Compilar
+- [Descargas y notas de publicación](https://github.com/Botarguirix/ShotgunK2Vita/releases)
+- [Instalación, actualización y controles](docs/INSTALLATION.md)
+- [Preparación de datos y herramientas](docs/DATA_TOOLS.md)
+- [Compilación y dependencias](docs/BUILDING.md)
+- [Estado y limitaciones](docs/STATUS_ITERATION78.md) · [Roadmap](docs/ROADMAP.md)
 
-Requiere VitaSDK, CMake y Linux/WSL. Lua, stb_truetype y dr_mp3 están incluidos.
+El VPK no incluye los datos necesarios para jugar. El extractor prepara recursos de un **APK compatible suministrado por el usuario**; no convierte una compra de Steam ni extrae `data.sgr`. Consulta los requisitos antes de instalar.
 
-```sh
-export VITASDK=/home/bota/vitasdk
-bash scripts/build.sh
-```
+La entrega existente 00.78 utiliza LuaJIT y presentación GPU. Sigue siendo experimental: no se garantiza compatibilidad con todos los modos, cartas, efectos, audio o partidas de otras versiones. No se afirma una mejora de FPS ni aceptación en consola de 00.78 sin evidencia de hardware.
 
-La corrección **00.04** convierte LiveArea a PNG indexados opacos de 8 bits,
-con paleta de 256 entradas, para resolver el error de instalación 0x8010113D.
-El usuario confirma mejora considerable de FPS tras 00.04 y reporta un crasheo.
-**00.05** añade logs por sesión que no se sobrescriben, checkpoints ~250 ms,
-trazas de errores Lua y símbolos nativos. Falta diagnosticar la causa del crash.
-El log recibido identifica una llamada a `delta()` no registrada en la
-repetición del pad. **00.06** añade ese alias de `dt()`; reproduce el error
-anterior y verifica direcciones mantenidas de cruceta/stick en PC.
+Al actualizar, instala el VPK con VitaShell sobre la aplicación existente y conserva `ux0:data/shotgunk2vita/`, especialmente `save/`. No desinstales ni reemplaces tus partidas.
 
-**00.07** implementa `trifill()` y `tri()` para corregir la parada al usar
-el stick derecho. El recorrido de 5.400 frames pasa en PC con sanitizadores;
-la validación en Vita sigue pendiente. [Diagnóstico y pruebas](docs/STATUS_ITERATION07.md).
+## English
 
-**00.08** corrige `aspr()` ausente al disparar y los sliders de opciones,
-añade doble framebuffer con composición en RAM y optimiza dibujo de texto.
-Pasan 6000 frames de disparo/recarga en PC; FPS y parpadeo deben verificarse
-en Vita. [Diagnóstico](docs/STATUS_ITERATION08.md) y [auditoría](docs/STABILITY_AUDIT.md).
+**Shotgun King Vita+** is an experimental homebrew project adapting Shotgun King to PlayStation Vita through a custom C runtime and a partial implementation of the SUGAR API. It runs Lua scripts and assets prepared from the user's own game files; it does not load the original Android or Windows binaries.
 
-Salida: `build-iterations/00.10/ShotgunK2Vita-performance.vpk`, título
-`SGKV00001`, versión 00.10. Cada versión usa una carpeta de compilación propia.
-El workflow compila este VPK sin datos comerciales ni arte extraído localmente.
+**Current version: 00.78 — Shotgun King Vita+** · Title ID: `SGKV00001`.
 
-## Preparar datos e imágenes de tu copia
+- [Downloads and release notes](https://github.com/Botarguirix/ShotgunK2Vita/releases)
+- [Installation, updates and controls](docs/INSTALLATION.md#english)
+- [Data preparation and tools](docs/DATA_TOOLS.md#english)
+- [Building and dependencies](docs/BUILDING.md#english)
+- [Status and limitations](docs/STATUS_ITERATION78.md) · [Roadmap](docs/ROADMAP.md)
 
-Requiere Python 3.9+ y Pillow. El preparador extrae recursos y scripts;
-no ejecuta las bibliotecas nativas del APK ni el EXE.
+The VPK does not include the game data required to play. The extractor prepares assets from a **compatible APK supplied by the user**; it cannot convert a Steam purchase or extract `data.sgr`. Read the requirements before installing.
 
-```sh
-python3 tools/prepare_data.py /ruta/juego.apk private/game
-python3 tools/prepare_livearea.py /ruta/shotgun_king.exe private/game private/livearea
-```
+The existing 00.78 delivery uses LuaJIT and GPU presentation. It remains experimental: compatibility with every mode, card, effect, audio feature or save from other versions is not guaranteed. No FPS improvement or console acceptance is claimed for 00.78 without hardware evidence.
 
-Compilar después de generar LiveArea. El icono procede de RT_ICON del EXE;
-la portada usa el atlas de título del APK. Si `private/livearea/` no existe,
-la compilación omite ese arte. Cada PNG de datos recibe un `.sgimg` auxiliar.
-Los datos de 00.02 siguen siendo válidos; no funciona copiando sólo `data.sgr`.
+To update, install the VPK over the existing application with VitaShell and preserve `ux0:data/shotgunk2vita/`, especially `save/`. Do not uninstall or replace your saves.
 
-```sh
-python3 tools/package_test.py
-```
+### Créditos / Credits
 
-Genera VPK, copia del código/documentación, validación y hashes en
-`artifacts/iterations/00.10/`. Incluye ELF/map con símbolos en `debug/`.
-Cada versión ocupa su propia carpeta y el
-empaquetador rechaza sobrescribir una entrega existente. Nunca reemplazar
-`save/` de la consola al actualizar únicamente el ejecutable.
-Para actualizar sólo el VPK: `python3 tools/package_test.py --vpk-only`.
+Proyecto comunitario no oficial, sin afiliación con los creadores del juego ni Sony. Shotgun King y sus recursos pertenecen a sus respectivos titulares. / Unofficial community project, not affiliated with the game's creators or Sony. Shotgun King and its assets belong to their respective rights holders.
 
-## Pruebas en PC
+Desarrollado con asistencia de ChatGPT/Codex. / Developed with ChatGPT/Codex assistance.
 
-```sh
-cmake -S . -B build-host -DSG_HOST_PROBE=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build build-host -j4
-mkdir -p reports
-./build-host/sg_probe private/game 4800 game
-./build-host/sg_bench private/game reports/perf.csv 4800 reports/frame.ppm 3
-./build-host/sg_audio_probe private/game reports/audio.wav
-```
+Referencias y licencias / References and licenses: [SUGAR modding guide](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide), [third-party notices](third_party/README.md). Las herramientas no incluyen datos extraídos del juego. / Tools contain no extracted game data.
 
-La prueba simula botones y registra el estado. El benchmark presenta cada
-fotograma sin VSync; sus tiempos/FPS derivados no son resultados de Vita.
-La prueba de audio simula 300 segundos, verifica pista A→B, bucle, efectos y
-silencio; guarda ocho segundos de PCM para inspección. No confirma salida audible
-por el puerto de la consola.
+ES: El árbol de código actual conserva ajustes posteriores al empaquetado en `src/gpu_presenter.c` (espera de renderizado) y `src/graphics.c` (blit y mezcla). Esos ajustes no están incluidos en el VPK 00.78 existente y requiere una futura entrega compilada y validada. Los símbolos de la release corresponden al VPK preservado, no a una recompilación del árbol actual.
 
-## Investigación
-
-El APK recibido contiene exclusivamente bibliotecas ARM64. El runtime usa los
-scripts y recursos, sin cargar esos binarios. Hallazgos:
-[viabilidad](docs/FEASIBILITY.md), [Steam](docs/STEAM_ANALYSIS.md),
-[recursos GitHub](docs/GITHUB_RESOURCES.md).
-La API se implementa a partir de la
-[documentación pública SUGAR](https://github.com/TRASEVOL-DOG/Shotgun-King-Modding-Guide).
-Dependencias y licencias: [third_party](third_party/README.md).
-
-## Publicación 00.38
-
-La entrega numerada de la iteración 00.38 está en `release/00.38/` e incluye el VPK, `performance.cfg`, instrucciones y el diagrama de controles actualizado. Los datos comerciales permanecen fuera del repositorio; el extractor requiere una copia local legítima del APK o Steam.
+EN: The current source tree retains post-packaging changes in `src/gpu_presenter.c` (rendering wait) and `src/graphics.c` (blit and blending). Those changes are not included in the existing 00.78 VPK and requires a future built and validated delivery. Release symbols match the preserved VPK, not a rebuild of the current tree.
