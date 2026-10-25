@@ -22,6 +22,8 @@ static lua_State *state;
 static FILE *output;
 static char rootpath[1024], failure[1024];
 static unsigned instructions;
+static int jit_mode;
+void sg_set_jit_mode(int on){jit_mode=on!=0;}
 static double frame_time;
 typedef struct{char id[80],tokens[512];unsigned mask,axis_dirs;int touch;uint64_t epoch;double values[3];} Binding;
 static uint64_t input_epoch=1;static int quit_requested;
@@ -85,10 +87,15 @@ static void limit(lua_State *L, lua_Debug *ar) {
     if(++instructions>2000) luaL_error(L,"Instruction limit exceeded during bootstrap");
 }
 static void logline(const char *text) { if(output){fprintf(output,"%s\n",text);fflush(output);} }
+/* Input replay plays on a copy of the recorded save snapshot, so "save/..."
+ * can be redirected; the player's real saves are never touched. */
+static char save_redirect[512];
+void sg_set_save_redirect(const char *dir){snprintf(save_redirect,sizeof(save_redirect),"%s",dir?dir:"");}
 static void resolve(const char *name,char *path,size_t cap) {
     /* APK scripts refer to the shared library directory two levels above. */
     while(!strncmp(name,"../",3)) name+=3;
     if(name[0]=='/' || strchr(name,':') || strstr(name,"..")) {path[0]=0;return;}
+    if(save_redirect[0]&&(!strncmp(name,"save/",5)||!strcmp(name,"save"))){snprintf(path,cap,"%s%s",save_redirect,name+4);return;}
     snprintf(path,cap,"%s/%s",rootpath,name);
 }
 static int load_vita_script(lua_State *L,const char *path,const char *name){
@@ -163,18 +170,23 @@ static int file_read(lua_State *L) {
 /* all() cursors follow array shifts performed by add/del. A closure owns its
  * userdata; __gc unlinks abandoned loops. Finished loops unlink immediately,
  * keeping mutation cost proportional to currently active loops. */
+/* Live all() cursors, bucketed by table pointer. Cursors of loops that break
+ * stay linked until GC; with one global list every add()/del() walked all of
+ * them, which made the per-turn distance BFS cost ~10 ms per call. */
 typedef struct AllCursor {const void *table;int index,linked;struct AllCursor *prev,*next;} AllCursor;
-static AllCursor *all_cursors;
+#define CURSOR_BUCKETS 1024
+static AllCursor *all_cursors[CURSOR_BUCKETS];static unsigned live_cursors;
+static AllCursor **cursor_bucket(const void *table){return &all_cursors[((uintptr_t)table>>4)&(CURSOR_BUCKETS-1)];}
 static void cursor_unlink(AllCursor *c){
  if(!c->linked)return;
- if(c->prev)c->prev->next=c->next;else all_cursors=c->next;
+ if(c->prev)c->prev->next=c->next;else *cursor_bucket(c->table)=c->next;
  if(c->next)c->next->prev=c->prev;
- c->linked=0;c->prev=c->next=NULL;
+ c->linked=0;c->prev=c->next=NULL;live_cursors--;
 }
 static int cursor_gc(lua_State *L){cursor_unlink(lua_touserdata(L,1));return 0;}
 static void cursor_shift(lua_State *L,int pos,int delta){
  const void *table=lua_topointer(L,1);
- for(AllCursor*c=all_cursors;c;c=c->next)if(c->table==table&&c->index>=pos)c->index+=delta;
+ for(AllCursor*c=*cursor_bucket(table);c;c=c->next)if(c->table==table&&c->index>=pos)c->index+=delta;
 }
 static int add(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);int n=(int)lua_objlen(L,1)+1;int pos=luaL_optint(L,3,n);for(int i=n;i>pos;i--){lua_rawgeti(L,1,i-1);lua_rawseti(L,1,i);}lua_pushvalue(L,2);lua_rawseti(L,1,pos);cursor_shift(L,pos,1);lua_pushvalue(L,2);return 1;}
 static int del(lua_State *L){int n=(int)lua_objlen(L,1);for(int i=1;i<=n;i++){lua_rawgeti(L,1,i);int same=lua_equal(L,-1,2);lua_pop(L,1);if(same){for(int j=i;j<n;j++){lua_rawgeti(L,1,j+1);lua_rawseti(L,1,j);}lua_pushnil(L);lua_rawseti(L,1,n);cursor_shift(L,i,-1);lua_pushvalue(L,2);return 1;}}return 0;}
@@ -183,7 +195,7 @@ static int all(lua_State *L){
  luaL_checktype(L,1,LUA_TTABLE);lua_pushvalue(L,1);
  AllCursor*c=lua_newuserdata(L,sizeof(*c));memset(c,0,sizeof(*c));c->table=lua_topointer(L,1);
  if(luaL_newmetatable(L,"sg.all_cursor")){lua_pushcfunction(L,cursor_gc);lua_setfield(L,-2,"__gc");}
- lua_setmetatable(L,-2);c->linked=1;c->next=all_cursors;if(all_cursors)all_cursors->prev=c;all_cursors=c;
+ lua_setmetatable(L,-2);AllCursor **head=cursor_bucket(c->table);c->linked=1;c->next=*head;if(*head)(*head)->prev=c;*head=c;live_cursors++;
  lua_pushcclosure(L,iterator,2);return 1;
 }
 static int rnd(lua_State *L){if(lua_istable(L,1)){int len=(int)lua_objlen(L,1);if(!len){lua_pushnil(L);return 1;}lua_rawgeti(L,1,1+rand()%len);return 1;}double n=luaL_optnumber(L,1,1);lua_pushnumber(L,(rand()/(RAND_MAX+1.0))*n);return 1;}
@@ -249,6 +261,97 @@ static int turn_cos(lua_State *L){lua_pushnumber(L,cos(luaL_checknumber(L,1)*6.2
 static int roundvalue(lua_State *L){lua_pushnumber(L,floor(luaL_checknumber(L,1)+.5));return 1;}
 static int signvalue(lua_State *L){double v=luaL_checknumber(L,1);lua_pushinteger(L,v<0?-1:v>0?1:0);return 1;}
 static int turn_atan(lua_State *L){double x=luaL_checknumber(L,1),y=luaL_checknumber(L,2);double v=atan2(y,x)/6.283185307179586;if(v<0)v+=1;lua_pushnumber(L,v);return 1;}
+/* SUGAR memory banks (manual: newbnk/delbnk/expbnk/bank/bnksize/bset/bget).
+ * A bank is a w*h grid of 1, 2 or 4 byte cells, little endian, zeroed on
+ * creation. Mods keep their save data in one. expbnk() returns
+ * "w:h:depth:" followed by every byte as two uppercase hex digits, row by row, which
+ * matches the .bnk files the PC game writes. */
+#define BANK_MAX 64
+typedef struct{char name[64];int w,h,depth;unsigned char *data;} Bank;
+static Bank banks[BANK_MAX];static int bank_current=-1;
+static int bank_find(const char *name){for(int i=0;i<BANK_MAX;i++)if(banks[i].data&&!strcmp(banks[i].name,name))return i;return -1;}
+static void bank_free(int i){free(banks[i].data);memset(&banks[i],0,sizeof(banks[i]));if(bank_current==i)bank_current=-1;}
+static void banks_reset(void){for(int i=0;i<BANK_MAX;i++)if(banks[i].data)bank_free(i);bank_current=-1;}
+static int bank_create(lua_State *L,const char *name,int w,int h,int depth){
+ if(w<1||h<1||(depth!=1&&depth!=2&&depth!=4)||(long long)w*h*depth>16*1024*1024)return luaL_error(L,"Invalid bank size %dx%dx%d",w,h,depth);
+ int i=bank_find(name);if(i>=0)bank_free(i);
+ for(i=0;i<BANK_MAX&&banks[i].data;i++){}
+ if(i==BANK_MAX)return luaL_error(L,"Too many banks");
+ banks[i].data=calloc((size_t)w*h*depth,1);if(!banks[i].data)return luaL_error(L,"Bank allocation failed");
+ snprintf(banks[i].name,sizeof(banks[i].name),"%s",name);banks[i].w=w;banks[i].h=h;banks[i].depth=depth;
+ if(bank_current<0)bank_current=i;
+ return i;
+}
+static int hexval(int c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:c>='A'&&c<='F'?c-'A'+10:-1;}
+/* Parses an expbnk() string; returns the bank index or -1 when malformed. */
+static int bank_import(lua_State *L,const char *name,const char *s,size_t n){
+ int w=0,h=0,depth=0,used=0;
+ if(sscanf(s,"%d:%d:%d:%n",&w,&h,&depth,&used)!=3||used<=0)return -1;
+ if(w<1||h<1||(depth!=1&&depth!=2&&depth!=4))return -1;
+ size_t bytes=(size_t)w*h*depth;if(n-(size_t)used<bytes*2)return -1;
+ int i=bank_create(L,name,w,h,depth);
+ for(size_t k=0;k<bytes;k++){int a=hexval(s[used+k*2]),b=hexval(s[used+k*2+1]);if(a<0||b<0){bank_free(i);return -1;}banks[i].data[k]=(unsigned char)(a*16+b);}
+ return i;
+}
+static int newbnk(lua_State *L){
+ const char *name=luaL_checkstring(L,1);
+ if(lua_type(L,2)==LUA_TSTRING){
+  size_t n;const char *s=lua_tolstring(L,2,&n);
+  if(bank_import(L,name,s,n)>=0)return 0;
+  /* Otherwise a .bnk filename, as in newbnk("map2","map.bnk"). */
+  char path[2048];resolve(s,path,sizeof(path));FILE *f=path[0]?fopen(path,"rb"):NULL;
+  if(!f)return luaL_error(L,"newbnk: invalid bank data or missing file %s",s);
+  fseek(f,0,SEEK_END);long len=ftell(f);rewind(f);
+  char *buf=len>0&&len<64*1024*1024?malloc((size_t)len+1):NULL;
+  size_t got=buf?fread(buf,1,(size_t)len,f):0;fclose(f);
+  if(buf)buf[got]=0;
+  int ok=buf&&bank_import(L,name,buf,got)>=0;free(buf);
+  if(!ok)return luaL_error(L,"newbnk: invalid bank file %s",s);
+  return 0;
+ }
+ bank_create(L,name,luaL_checkint(L,2),luaL_checkint(L,3),luaL_optint(L,4,1));
+ return 0;
+}
+/* idx 0, or a missing argument, means the focused bank. */
+static int bank_arg(lua_State *L,int idx){
+ int current=idx<=0||lua_isnoneornil(L,idx);
+ int i=current?bank_current:bank_find(luaL_checkstring(L,idx));
+ if(i<0)luaL_error(L,"Unknown bank %s",current?"(none focused)":lua_tostring(L,idx));
+ return i;
+}
+static int delbnk(lua_State *L){bank_free(bank_arg(L,1));return 0;}
+static int expbnk(lua_State *L){
+ Bank *b=&banks[bank_arg(L,1)];size_t bytes=(size_t)b->w*b->h*b->depth;
+ luaL_Buffer out;luaL_buffinit(L,&out);
+ char head[48];snprintf(head,sizeof(head),"%d:%d:%d:",b->w,b->h,b->depth);luaL_addstring(&out,head);
+ static const char digits[]="0123456789ABCDEF";
+ for(size_t k=0;k<bytes;k++){luaL_addchar(&out,digits[b->data[k]>>4]);luaL_addchar(&out,digits[b->data[k]&15]);}
+ luaL_pushresult(&out);return 1;
+}
+static int bank_focus(lua_State *L){
+ if(lua_isnoneornil(L,1)){if(bank_current<0)lua_pushnil(L);else lua_pushstring(L,banks[bank_current].name);return 1;}
+ bank_current=bank_arg(L,1);return 0;
+}
+static int bnksize(lua_State *L){Bank *b=&banks[bank_arg(L,0)];lua_pushinteger(L,b->w);lua_pushinteger(L,b->h);lua_pushinteger(L,b->depth);return 3;}
+/* bset(x,y,v[,byte]) or bset(name,x,y,v[,byte]); bget likewise. */
+static int bset(lua_State *L){
+ int named=lua_type(L,1)==LUA_TSTRING,i=named?bank_arg(L,1):bank_arg(L,0),a=named?2:1;Bank *b=&banks[i];
+ int x=luaL_checkint(L,a),y=luaL_checkint(L,a+1);uint32_t v=(uint32_t)(long long)luaL_checknumber(L,a+2);
+ if(x<0||y<0||x>=b->w||y>=b->h)return 0;
+ unsigned char *cell=b->data+((size_t)y*b->w+x)*b->depth;
+ if(!lua_isnoneornil(L,a+3)){int byte=luaL_checkint(L,a+3);if(byte>=0&&byte<b->depth)cell[byte]=(unsigned char)v;return 0;}
+ for(int k=0;k<b->depth;k++)cell[k]=(unsigned char)(v>>(8*k));
+ return 0;
+}
+static int bget(lua_State *L){
+ int named=lua_type(L,1)==LUA_TSTRING,i=named?bank_arg(L,1):bank_arg(L,0),a=named?2:1;Bank *b=&banks[i];
+ int x=luaL_checkint(L,a),y=luaL_checkint(L,a+1);
+ if(x<0||y<0||x>=b->w||y>=b->h){lua_pushinteger(L,0);return 1;}
+ const unsigned char *cell=b->data+((size_t)y*b->w+x)*b->depth;
+ if(!lua_isnoneornil(L,a+2)){int byte=luaL_checkint(L,a+2);lua_pushinteger(L,byte>=0&&byte<b->depth?cell[byte]:0);return 1;}
+ uint32_t v=0;for(int k=0;k<b->depth;k++)v|=(uint32_t)cell[k]<<(8*k);
+ lua_pushnumber(L,(lua_Number)v);return 1;
+}
 static int remove_save(lua_State *L){const char *name=luaL_checkstring(L,1);if(strncmp(name,"save/",5))return luaL_error(L,"Removal restricted to save/");char path[2048];resolve(name,path,sizeof(path));if(path[0])remove(path);return 0;}
 static int lib_callbacks(lua_State *L,const char *name){lua_getglobal(L,name);if(lua_istable(L,-1)){lua_pushnil(L);while(lua_next(L,-2)){lua_pushvalue(L,-1);lua_call(L,0,0);lua_pop(L,1);}}lua_pop(L,1);return 0;}
 static int shallow_copy(lua_State *L){luaL_checktype(L,1,LUA_TTABLE);lua_newtable(L);lua_pushnil(L);while(lua_next(L,1)){lua_pushvalue(L,-2);lua_pushvalue(L,-2);lua_settable(L,2);lua_pop(L,1);}return 1;}
@@ -278,7 +381,83 @@ static void instrument_entity(const char *name,int draw){
  lua_getglobal(state,name);if(!lua_isfunction(state,-1)){lua_pop(state,1);return;}
  lua_pushboolean(state,draw);lua_pushcclosure(state,entity_call,2);lua_setglobal(state,name);
 }
-static int frame_call(lua_State *L){lua_getglobal(L,"ents");if(lua_istable(L,-1))sg_perf.entities=lua_objlen(L,-1);lua_pop(L,1);sg_diag_phase(SG_DIAG_UPDATE);uint64_t start=sg_now_us();lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;sg_diag_phase(SG_DIAG_DRAW);start=sg_now_us();lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;return 0;}
+/* profile_funcs=1: inclusive wall time per global Lua function, logged for
+ * frames whose update is a spike. Board helpers called thousands of times per
+ * turn are left unwrapped so their cost lands in the caller. */
+#define PROF_MAX 2048
+static char prof_name[PROF_MAX][48];static uint64_t prof_us[PROF_MAX];static unsigned prof_calls[PROF_MAX];
+static unsigned short prof_touched[PROF_MAX];static int prof_count,prof_ntouched,prof_mode;
+void sg_set_profile_funcs(int on){prof_mode=on!=0;}
+static int prof_call(lua_State *L){
+ int id=(int)lua_tointeger(L,lua_upvalueindex(2)),n=lua_gettop(L);
+ lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);
+ uint64_t start=sg_now_us();lua_call(L,n,LUA_MULTRET);
+ if(!prof_calls[id])prof_touched[prof_ntouched++]=(unsigned short)id;
+ prof_us[id]+=sg_now_us()-start;prof_calls[id]++;
+ return lua_gettop(L);
+}
+static void prof_install(lua_State *L){
+ static const char *skip[]={"gsq","dsq","is_free","sqp","get_hero_sq","tbl_has","tbz","sgn","lerp","prof_call",NULL};
+ lua_pushnil(L);
+ while(lua_next(L,LUA_GLOBALSINDEX)&&prof_count<PROF_MAX){
+  if(lua_type(L,-2)==LUA_TSTRING&&lua_isfunction(L,-1)&&!lua_iscfunction(L,-1)){
+   const char *name=lua_tostring(L,-2);int skipped=0;for(int i=0;skip[i];i++)if(!strcmp(name,skip[i]))skipped=1;
+   if(!skipped){
+    int id=prof_count++;snprintf(prof_name[id],sizeof(prof_name[id]),"%s",name);
+    lua_pushvalue(L,-2);lua_pushvalue(L,-2);lua_pushinteger(L,id);lua_pushcclosure(L,prof_call,2);
+    lua_rawset(L,LUA_GLOBALSINDEX);
+   }
+  }
+  lua_pop(L,1);
+ }
+}
+static void prof_frame_end(unsigned frame,uint64_t update_us){
+ if(update_us>40000&&prof_ntouched){
+  char line[1400];int used=snprintf(line,sizeof(line),"spike frame=%u update_ms=%.1f live_cursors=%u",frame,update_us/1000.0,live_cursors);
+  for(int k=0;k<10;k++){
+   int best=-1;for(int i=0;i<prof_ntouched;i++){int id=prof_touched[i];if(prof_calls[id]&&(best<0||prof_us[id]>prof_us[best]))best=id;}
+   if(best<0||used>=(int)sizeof(line)-100)break;
+   used+=snprintf(line+used,sizeof(line)-used," %s=%.1fms/%u",prof_name[best],prof_us[best]/1000.0,prof_calls[best]);
+   prof_calls[best]=0;
+  }
+  logline(line);
+ }
+ for(int i=0;i<prof_ntouched;i++){int id=prof_touched[i];prof_us[id]=0;prof_calls[id]=0;}
+ prof_ntouched=0;
+}
+static unsigned prof_frames;
+/* profile_lines=1: time-weighted line sampler. A count hook every 1000 Lua
+ * instructions charges the wall time since the previous sample to the line
+ * running now, so time spent inside C calls (spr, pal...) lands on the Lua
+ * line that made them. Logs the top lines per phase every 600 frames. */
+#define LINE_SLOTS 4096
+typedef struct{const char *src;int line;char phase;uint64_t us;unsigned hits;} LineSample;
+static LineSample line_tab[LINE_SLOTS];static int line_mode,line_used;static uint64_t line_last,line_window_start;
+static char line_phase='O';static unsigned line_frames;static uint64_t line_entities;
+void sg_set_profile_lines(int on){line_mode=on!=0;}
+static void line_hook(lua_State *L,lua_Debug *ar){
+ uint64_t now=sg_now_us(),dt=now-line_last;line_last=now;
+ if(!lua_getinfo(L,"Sl",ar)||!ar->source)return;
+ unsigned h=((unsigned)(uintptr_t)ar->source>>3)^((unsigned)ar->currentline*2654435761u)^(unsigned)line_phase;
+ for(int probe=0;probe<LINE_SLOTS;probe++){
+  LineSample *s=&line_tab[(h+probe)&(LINE_SLOTS-1)];
+  if(s->src==ar->source&&s->line==ar->currentline&&s->phase==line_phase){s->us+=dt;s->hits++;return;}
+  if(!s->src){if(line_used>=LINE_SLOTS*3/4)return;s->src=ar->source;s->line=ar->currentline;s->phase=line_phase;s->us=dt;s->hits=1;line_used++;return;}
+ }
+}
+static void line_dump(void){
+ uint64_t now=sg_now_us(),total=0;for(int i=0;i<LINE_SLOTS;i++)total+=line_tab[i].us;
+ char line[256];snprintf(line,sizeof(line),"lines window frames=%u wall_ms=%.0f sampled_ms=%.0f avg_entities=%.0f",line_frames,(now-line_window_start)/1000.0,total/1000.0,line_frames?(double)line_entities/line_frames:0.0);logline(line);
+ for(int k=0;k<25;k++){
+  int best=-1;for(int i=0;i<LINE_SLOTS;i++)if(line_tab[i].src&&line_tab[i].hits&&(best<0||line_tab[i].us>line_tab[best].us))best=i;
+  if(best<0)break;LineSample *s=&line_tab[best];
+  const char *src=s->src[0]=='@'?s->src+1:s->src,*cut=strrchr(src,'/');if(cut&&cut>src){const char *prev=cut-1;while(prev>src&&*prev!='/')prev--;src=*prev=='/'?prev+1:prev;}
+  snprintf(line,sizeof(line),"lines %c %6.1fms/frame %5.1f%% %s:%d",s->phase,s->us/1000.0/(line_frames?line_frames:1),total?100.0*s->us/total:0.0,src,s->line);logline(line);
+  s->hits=0;
+ }
+ memset(line_tab,0,sizeof(line_tab));line_used=0;line_frames=0;line_entities=0;line_window_start=now;
+}
+static int frame_call(lua_State *L){lua_getglobal(L,"ents");if(lua_istable(L,-1))sg_perf.entities=lua_objlen(L,-1);lua_pop(L,1);sg_diag_phase(SG_DIAG_UPDATE);uint64_t start=sg_now_us();line_last=start;line_phase='U';lib_callbacks(L,"_lib_update");lua_getglobal(L,"_update");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);sg_perf.update_us=sg_now_us()-start;sg_diag_phase(SG_DIAG_DRAW);start=sg_now_us();line_last=start;line_phase='D';lua_getglobal(L,"_draw");if(lua_isfunction(L,-1))lua_call(L,0,0);else lua_pop(L,1);lib_callbacks(L,"_lib_draw");sg_perf.draw_us=sg_now_us()-start;line_phase='O';return 0;}
 static int traceback(lua_State *L){
     char message[8192];const char *error=lua_tostring(L,1);
     size_t used=(size_t)snprintf(message,sizeof(message),"%s\nstack traceback:",error?error:"Non-string Lua error");
@@ -352,6 +531,7 @@ int sg_boot(const char *root,FILE *log) {
     if(protected_call(state,0,0)){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     reg("controls",controls);reg("btn",btn);reg("btnp",btnp);reg("btnr",btnr);reg("btnv",btnv);reg("mouse",mouse);
     reg("rumble",muted_audio);
+    banks_reset();reg("newbnk",newbnk);reg("delbnk",delbnk);reg("expbnk",expbnk);reg("bank",bank_focus);reg("bnksize",bnksize);reg("bset",bset);reg("bget",bget);
     sg_audio_init(state,rootpath,output);sg_audio_start(output);
     /* Instruction watchdog: LuaJIT pays a measurable cost for dense hooks;
      * retain safety while sampling less often on the experimental runtime. */
@@ -370,8 +550,19 @@ int sg_boot(const char *root,FILE *log) {
     if(!status){index_options(state);lua_pushcfunction(state,init_libs);status=protected_call(state,0,0);}
     if(status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
     sg_ui_reset();reg("ach_unlock",local_notice);
-    sg_graphics_fast_api(state);instrument_entity("dre",1);instrument_entity("upe",0);
+    sg_graphics_fast_api(state);
+    /* Any LuaJIT hook forces the interpreter, and C wrappers around upe/dre
+     * abort traces of the per-entity loops. jit mode trades the watchdog,
+     * line sampling and entity counters for compiled game code. */
+    if(jit_mode){lua_sethook(state,NULL,0,0);}
+    else {instrument_entity("dre",1);instrument_entity("upe",0);}
+    lua_pushboolean(state,jit_mode);lua_setglobal(state,"HOOKLESS");
+    int jit_probe=luaL_dostring(state,"local j=rawget(_G,'jit') or (package and package.loaded and package.loaded.jit) if type(j)~='table' then return 'jit unavailable' end if HOOKLESS then pcall(j.on) end local r={pcall(j.status)} local f={} for i=3,#r do f[#f+1]=tostring(r[i]) end return 'jit '..(r[1] and r[2] and 'on' or 'off')..' '..tostring(j.arch)..' '..tostring(j.version)..' '..table.concat(f,' ')");
+    {char line[512];const char *msg=lua_tostring(state,-1);snprintf(line,sizeof(line),"%s%s requested=%d hook=%s",jit_probe?"jit probe failed: ":"",msg?msg:"?",jit_mode,jit_mode?"off":"on");logline(line);}
+    lua_settop(state,0);lua_pushnil(state);lua_setglobal(state,"HOOKLESS");
     instrument_action("move_hero",0);instrument_action("goto_sq",1);instrument_action("fx_wrong",2);
+    if(line_mode){lua_sethook(state,line_hook,LUA_MASKCOUNT,1000);line_window_start=line_last=sg_now_us();logline("profile_lines hook=count/1000");}
+    if(prof_mode){prof_install(state);char line[96];snprintf(line,sizeof(line),"profile_funcs wrapped=%d",prof_count);logline(line);}
     logline("_init completed; achievement popup=native; external services=disabled");return 1;
 }
 const char *sg_error(void){return failure;}
@@ -388,7 +579,9 @@ int sg_host_eval(const char *script){
 }
 #endif
 void sg_report_state(void){if(!state)return;const char *names[]={"ingame","playing","game_mode","ctrl_mode","selectedOption","MOUSE","turn",NULL};for(int i=0;names[i];i++){lua_getglobal(state,names[i]);char line[256];const char *s=lua_tostring(state,-1);snprintf(line,sizeof(line),"state.%s=%s",names[i],s?s:lua_isboolean(state,-1)?(lua_toboolean(state,-1)?"true":"false"):lua_typename(state,lua_type(state,-1)));logline(line);lua_pop(state,1);}}
-int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;sg_ui_tick();instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}return 1;}
+int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y){if(!state||failure[0])return 0;buttons_prev=buttons_now;buttons_now=buttons;memcpy(axes_prev,axes,sizeof(axes));touch_prev=touched;touched=touch;mx=x;my=y;axes[0]=lx;axes[1]=ly;axes[2]=rx;axes[3]=ry;frame_time+=1.0/60;sg_ui_tick();instructions=0;input_epoch++;sg_perf_begin();lua_pushcfunction(state,frame_call);if(protected_call(state,0,0)){const char *error=lua_tostring(state,-1);snprintf(failure,sizeof(failure),"%s",error?error:"Lua protected call failed");logline(failure);lua_pop(state,1);return 0;}if(prof_mode)prof_frame_end(prof_frames,sg_perf.update_us);prof_frames++;
+ if(line_mode){line_frames++;line_entities+=sg_perf.entities;if(line_frames>=600)line_dump();}
+ return 1;}
 unsigned sg_lua_memory_kb(void){return state?(unsigned)lua_gc(state,LUA_GCCOUNT,0):0;}
 void sg_report_movement(void){
  if(!state||!output)return;lua_State *L=state;int top=lua_gettop(L);char mode[64];
@@ -401,4 +594,7 @@ void sg_report_movement(void){
  lua_getglobal(L,"move_cur");int cur=lua_gettop(L);
  fprintf(output,"control_state mode=%s gamepad=%d touch=%d hero_sq=%.0f/%.0f sprite=%.3f/%.3f square_pos=%.3f/%.3f tween=%d move_target=%.0f/%.0f hero_t=%.0f twc=%.3f tws=%.3f tween_end=%.3f/%.3f\n",mode,pad,touch,px,py,x,y,sx,sy,tween,field_num(L,cur,"px"),field_num(L,cur,"py"),age,progress,duration,ex,ey);lua_settop(L,top);
 }
-void sg_close(void){sg_audio_close();if(state)lua_close(state);state=NULL;sg_graphics_close();}
+void sg_close(void){sg_audio_close();banks_reset();
+ /* Compiled trace count: proves whether the JIT ran, not just whether it was on. */
+ if(state&&!luaL_dostring(state,"local u=package and package.loaded and package.loaded['jit.util'] if not u or not u.traceinfo then return 'jit_traces unavailable' end local n=0 while u.traceinfo(n+1) do n=n+1 end return 'jit_traces='..n")){logline(lua_tostring(state,-1));}
+ if(state)lua_close(state);state=NULL;sg_graphics_close();}

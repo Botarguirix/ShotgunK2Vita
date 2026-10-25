@@ -106,7 +106,7 @@ add_library(sg_vita2d STATIC third_party/libvita2d-core/source/vita2d.c
  third_party/libvita2d-core/source/vita2d_draw.c third_party/libvita2d-core/source/vita2d_texture.c
  third_party/libvita2d-core/source/utils.c ${SG_GPU_SHADERS})
 target_include_directories(sg_vita2d PUBLIC third_party/libvita2d-core/include)
-add_executable(ShotgunK2Vita src/main.c src/gpu_presenter.c)
+add_executable(ShotgunK2Vita src/main.c src/gpu_presenter.c src/input_replay.c)
 target_compile_options(ShotgunK2Vita PRIVATE -Wall -Wextra -g)
 target_link_options(ShotgunK2Vita PRIVATE "-Wl,-T,${CMAKE_CURRENT_SOURCE_DIR}/scripts/vita_sce_gap.ld" "-Wl,-Map,${CMAKE_CURRENT_BINARY_DIR}/ShotgunK2Vita.map")
 target_include_directories(ShotgunK2Vita PRIVATE third_party)

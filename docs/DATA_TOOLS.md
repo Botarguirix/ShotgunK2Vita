@@ -1,5 +1,10 @@
 # Datos y herramientas / Data and tools
 
+> Actualización Steam: ya existe un extractor local probado para el SGR de la edición PC 1.623b. Véase [SGR_FORMAT](SGR_FORMAT.md). El flujo `prepare_data.py` descrito abajo sigue siendo exclusivo para APK; `inspect_pe.py` sigue siendo sólo un inspector.
+>
+> Steam update: a local extractor is now verified for the PC 1.623b SGR. See [SGR_FORMAT](SGR_FORMAT.md#english). The `prepare_data.py` workflow below remains APK-only; `inspect_pe.py` remains an inspector.
+
+
 ## Español
 
 Herramientas en `tools/` y el ZIP DataTools de la release. Requieren Python **3.11+** (el inspector APK usa `hashlib.file_digest`) y Pillow. Desde la raíz del repositorio:

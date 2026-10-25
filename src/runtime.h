@@ -9,6 +9,14 @@ void sg_report_state(void);
 unsigned sg_lua_memory_kb(void);
 void sg_set_fps_limit(int limit);
 int sg_get_fps_limit(void);
+/* Before sg_boot: drop the Lua hook and entity wrappers after bootstrap. */
+void sg_set_jit_mode(int on);
+/* Before sg_boot: time global Lua functions and log the top ones on spikes. */
+void sg_set_profile_funcs(int on);
+/* Before sg_boot: time-weighted Lua line sampler, top lines every 600 frames. */
+void sg_set_profile_lines(int on);
+/* Map "save/..." to this directory (NULL or "" restores the real save/). */
+void sg_set_save_redirect(const char *dir);
 #ifndef SG_VITA
 int sg_host_eval(const char *script);
 #endif

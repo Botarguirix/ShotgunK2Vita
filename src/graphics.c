@@ -59,7 +59,17 @@ static int load(lua_State *L,const char *filename,const char *key,int use_palett
  return id;
 }
 static void dot(int x,int y,int c){Surface *s=&surfaces[dst];x-=camx;y-=camy;if(dst==0&&output_divisor==2&&((x|y)&1))return;if(x<clipx||y<clipy||x>=clipx+clipw||y>=clipy+cliph)return;int alt=(pattern>>((y&3)*4+(x&3)))&1;if(alt&&pattern_transparent)return;if(x>=0&&y>=0&&x<s->w&&y<s->h){int value=mapping[(alt?c>>8:c)&255];s->p[y*s->w+x]=blend_table[value][s->p[y*s->w+x]];}}
-static int newsrf(lua_State *L){int id;if(lua_isnumber(L,1)){char key[64];snprintf(key,sizeof(key),"surface%d",count);id=create(L,luaL_optstring(L,3,key),luaL_checkint(L,1),luaL_checkint(L,2));}else{id=load(L,luaL_checkstring(L,1),luaL_optstring(L,2,lua_tostring(L,1)),0);}lua_pushstring(L,surfaces[id].key);return 1;}
+/* SUGAR: newsrf(w,h[,name]) or newsrf(data[,name]); data ending in ".png" is
+ * an image (served here as its prepared .sgimg), anything else would be an
+ * expsrf export. Those are not supported; like SUGAR, a bad data string must
+ * not stop the game (a shipped mod calls newsrf("title","file.png")), so it
+ * yields an empty 1x1 surface under that name and a console warning. */
+static int ends_png(const char *s){size_t n=strlen(s);return n>=4&&(s[n-4]=='.')&&(s[n-3]|32)=='p'&&(s[n-2]|32)=='n'&&(s[n-1]|32)=='g';}
+static int newsrf(lua_State *L){int id;if(lua_isnumber(L,1)){char key[64];snprintf(key,sizeof(key),"surface%d",count);id=create(L,luaL_optstring(L,3,key),luaL_checkint(L,1),luaL_checkint(L,2));}
+ else{const char *data=luaL_checkstring(L,1),*name=luaL_optstring(L,2,data);
+  if(ends_png(data))id=load(L,data,name,0);
+  else{fprintf(stdout,"newsrf: unsupported surface data '%.40s' for '%s', using empty 1x1\n",data,name);id=create(L,name,1,1);}}
+ lua_pushstring(L,surfaces[id].key);return 1;}
 static int palette(lua_State *L){if(lua_gettop(L)){if(lua_istable(L,1)){int n=(int)lua_objlen(L,1);for(int i=0;i<n&&i<256;i++){lua_rawgeti(L,1,i+1);unsigned c=(unsigned)lua_tointeger(L,-1);lua_pop(L,1);colors[i]=0xff000000u|((c>>16)&255)|(c&0xff00)|((c&255)<<16);}}else load(L,luaL_checkstring(L,1),"_palette",1);}lua_newtable(L);for(int i=0;i<256;i++){unsigned c=colors[i];lua_pushinteger(L,((c&255)<<16)|(c&0xff00)|((c>>16)&255));lua_rawseti(L,-2,i+1);}return 1;}
 static int target(lua_State *L){dst=lua_gettop(L)?locate(L,luaL_checkstring(L,1)):0;return 0;}
 static int spritesheet(lua_State *L){
@@ -409,8 +419,184 @@ static int apal_batch(lua_State *L){
  if(!native||lua_gettop(L)<1){int n=lua_gettop(L);lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,n,LUA_MULTRET);return lua_gettop(L);}
  memset(mapping,luaL_checkint(L,1)&255,256);return 0;
 }
+/* code.lua upe() counter pass: every "c_*" field moves one step toward 0
+ * (or up with rev_c) and is cleared when it reaches 0. Walking the table in C
+ * avoids interpreted pairs() over every field of every entity each frame. */
+static int tick_counters(lua_State *L){
+ luaL_checktype(L,1,LUA_TTABLE);lua_Number dir=lua_toboolean(L,2)?1:-1;
+ lua_pushnil(L);
+ while(lua_next(L,1)){
+  if(lua_type(L,-2)==LUA_TSTRING){
+   size_t n;const char *k=lua_tolstring(L,-2,&n);
+   if(n>=2&&k[0]=='c'&&k[1]=='_'){
+    if(!lua_isnumber(L,-1))return luaL_error(L,"attempt to perform arithmetic on field '%s'",k);
+    lua_Number v=lua_tonumber(L,-1)+dir;
+    lua_pushvalue(L,-2);if(v>0)lua_pushnumber(L,v);else lua_pushnil(L);lua_rawset(L,1);
+   }
+  }
+  lua_pop(L,1);
+ }
+ return 0;
+}
+/* toolkit.lua split(str,sep) rebuilt with sub() per byte and re-cut the rest of
+ * the string after each piece, quadratic in the text length; it showed up in
+ * the turn-processing spikes. Matches its edge cases exactly: "" gives {},
+ * sep "" gives one byte per item, a trailing sep adds a final "". */
+static int split_exact(lua_State *L){
+ size_t n,m;const char *s=luaL_checklstring(L,1,&n),*sep=luaL_checklstring(L,2,&m);
+ lua_newtable(L);int k=1;
+ if(!m){for(size_t i=0;i<n;i++){lua_pushlstring(L,s+i,1);lua_rawseti(L,-2,k++);}if(n){lua_pushliteral(L,"");lua_rawseti(L,-2,k);}return 1;}
+ const char *p=s,*end=s+n;
+ while(p<end){
+  const char *q=p;while(q+m<=end&&memcmp(q,sep,m))q++;
+  if(q+m>end){lua_pushlstring(L,p,(size_t)(end-p));lua_rawseti(L,-2,k++);break;}
+  lua_pushlstring(L,p,(size_t)(q-p));lua_rawseti(L,-2,k++);p=q+m;
+  if(p==end){lua_pushliteral(L,"");lua_rawseti(L,-2,k++);}
+ }
+ return 1;
+}
+/* Board distance BFS for code.lua trace_hdist/trace_piece_dist. Unit-cost BFS
+ * gives shortest distances whatever the visit order, so only the neighbour
+ * rules of each Lua gnx() need to match. Interpreted, each call cost ~10 ms
+ * on Vita and a turn runs dozens of them.
+ * sg_trace_dist(key|nil, starts, mode, self|nil, dgr|nil)
+ * mode: {"walk"} {"free4"} {"diag8"} {"knight"} {"lines",a,b,dmin,dmax}
+ * Writes sq.dist and sq[key], or dgr[sq] when dgr is given; unreached = 99. */
+#define DIST_MAX 4096
+static int dist_value[DIST_MAX],dist_queue[DIST_MAX*8],dist_px[DIST_MAX],dist_py[DIST_MAX];
+static unsigned char dist_exists[DIST_MAX],dist_free[DIST_MAX],dist_walk[DIST_MAX],dist_moat[DIST_MAX];
+static int dist_int(lua_State *L,int idx,int i,int def){lua_rawgeti(L,idx,i);int v=lua_isnumber(L,-1)?(int)lua_tointeger(L,-1):def;lua_pop(L,1);return v;}
+static int trace_dist(lua_State *L){
+ int has_key=lua_type(L,1)==LUA_TSTRING,has_self=!lua_isnoneornil(L,4),has_dgr=lua_istable(L,5);
+ luaL_checktype(L,2,LUA_TTABLE);luaL_checktype(L,3,LUA_TTABLE);
+ if(!has_key&&!has_dgr)return luaL_error(L,"sg_trace_dist needs a key or dgr");
+ lua_getglobal(L,"xmax");int xm=(int)lua_tointeger(L,-1);lua_getglobal(L,"ymax");int ym=(int)lua_tointeger(L,-1);lua_pop(L,2);
+ if(xm<=0||ym<=0||xm*ym>DIST_MAX)return luaL_error(L,"sg_trace_dist board %dx%d",xm,ym);
+ int n=xm*ym;
+ lua_getglobal(L,"squares");int squares=lua_gettop(L);if(!lua_istable(L,squares))return luaL_error(L,"sg_trace_dist: squares");
+ lua_getglobal(L,"fly");int fly=lua_toboolean(L,-1);lua_pop(L,1);
+ int dirs[16],knight[16];
+ lua_getglobal(L,"DIRS");for(int i=0;i<16;i++)dirs[i]=lua_istable(L,-1)?dist_int(L,lua_gettop(L),i+1,0):0;lua_pop(L,1);
+ lua_getglobal(L,"KNIGHT_MOVES");for(int i=0;i<16;i++)knight[i]=lua_istable(L,-1)?dist_int(L,lua_gettop(L),i+1,0):0;lua_pop(L,1);
+ lua_rawgeti(L,3,1);const char *mode=lua_tostring(L,-1);lua_pop(L,1);if(!mode)return luaL_error(L,"sg_trace_dist: mode");
+ int la=dist_int(L,3,2,0),lb=dist_int(L,3,3,0),dmin=dist_int(L,3,4,1),dmax=dist_int(L,3,5,12);
+ for(int i=0;i<n;i++){
+  lua_rawgeti(L,squares,i+1);dist_exists[i]=lua_istable(L,-1);dist_free[i]=dist_walk[i]=dist_moat[i]=0;dist_value[i]=99;
+  if(dist_exists[i]){
+   int sq=lua_gettop(L);
+   lua_getfield(L,sq,"px");dist_px[i]=(int)lua_tointeger(L,-1);lua_getfield(L,sq,"py");dist_py[i]=(int)lua_tointeger(L,-1);lua_pop(L,2);
+   lua_getfield(L,sq,"p");int p=lua_gettop(L),hasp=lua_toboolean(L,p),type6=0,self=0;
+   if(hasp){if(lua_istable(L,p)){lua_getfield(L,p,"type");type6=lua_type(L,-1)==LUA_TNUMBER&&lua_tonumber(L,-1)==6;lua_pop(L,1);}self=has_self&&lua_rawequal(L,p,4);}
+   lua_getfield(L,sq,"reserved");int reserved=lua_toboolean(L,-1);lua_getfield(L,sq,"moat");dist_moat[i]=(unsigned char)lua_toboolean(L,-1);lua_pop(L,3);
+   int is_free=!hasp&&!reserved;
+   dist_free[i]=(unsigned char)(is_free||self);dist_walk[i]=(unsigned char)(!hasp||type6);
+  }
+  lua_pop(L,1);
+ }
+ /* gsq(x,y): squares[1+x*ymax+y] inside the board, else nil. */
+ #define DIST_AT(x,y) (((x)>=0&&(x)<xm&&(y)>=0&&(y)<ym&&dist_exists[(x)*ym+(y)])?(x)*ym+(y):-1)
+ int head=0,tail=0;
+ lua_pushnil(L);
+ while(lua_next(L,2)){
+  if(lua_istable(L,-1)){lua_getfield(L,-1,"px");int x=(int)lua_tointeger(L,-1);lua_getfield(L,-2,"py");int y=(int)lua_tointeger(L,-1);lua_pop(L,2);int j=DIST_AT(x,y);if(j>=0&&tail<DIST_MAX*8){dist_value[j]=0;dist_queue[tail++]=j;}}
+  lua_pop(L,1);
+ }
+ while(head<tail){
+  int i=dist_queue[head++],d=dist_value[i]+1,x=dist_px[i],y=dist_py[i];
+  int cand[200],nc=0;
+  if(!strcmp(mode,"walk")||!strcmp(mode,"free4")){int walk=mode[0]=='w';for(int di=0;di<4;di++){int j=DIST_AT(x+dirs[di*2],y+dirs[di*2+1]);if(j>=0&&(walk?dist_walk[j]:dist_free[j]))cand[nc++]=j;}}
+  else if(!strcmp(mode,"diag8")){for(int di=0;di<8;di++){int j=DIST_AT(x+dirs[di*2],y+dirs[di*2+1]);if(j>=0)cand[nc++]=j;}}
+  else if(!strcmp(mode,"knight")){for(int di=0;di<8;di++){int j=DIST_AT(x+knight[di*2],y+knight[di*2+1]);if(j>=0&&dist_free[j])cand[nc++]=j;}}
+  else if(!strcmp(mode,"lines")){
+   for(int di=la;di<=lb&&di<8;di++)for(int k=dmin;k<=dmax;k++){
+    int j=DIST_AT(x+dirs[di*2]*k,y+dirs[di*2+1]*k);
+    if(j>=0&&dist_free[j]){if(nc<200)cand[nc++]=j;if(dist_moat[j])break;}
+    else if(!(j>=0&&fly))break;
+   }
+  }
+  else return luaL_error(L,"sg_trace_dist: unknown mode %s",mode);
+  for(int c=0;c<nc;c++){int j=cand[c];if(dist_value[j]>d&&tail<DIST_MAX*8){dist_value[j]=d;dist_queue[tail++]=j;}}
+ }
+ #undef DIST_AT
+ for(int i=0;i<n;i++){
+  if(!dist_exists[i])continue;
+  lua_rawgeti(L,squares,i+1);int sq=lua_gettop(L);
+  if(has_dgr){lua_pushvalue(L,sq);lua_pushinteger(L,dist_value[i]);lua_settable(L,5);}
+  else{lua_pushinteger(L,dist_value[i]);lua_setfield(L,sq,"dist");lua_pushinteger(L,dist_value[i]);lua_setfield(L,sq,lua_tostring(L,1));}
+  lua_pop(L,1);
+ }
+ return 0;
+}
+/* Combat-frame helpers, chosen from the time-weighted line profile. Each one
+ * reproduces the Lua it replaces; code.lua keeps the Lua path as fallback. */
+
+/* code.lua sfillp_rst(): for i=0,5 do sfillp(i,0,i) end. sfillp_dissolve(c):
+ * for i=0,5 do sfillp(i,pat[1+flr(mid(0,c,1)*15)],i) end. Called around most
+ * piece draws. Falls back to the original when sfillp is no longer native. */
+static int sfillp_native(lua_State *L){lua_getglobal(L,"sfillp");int ok=lua_tocfunction(L,-1)==sfillp;lua_pop(L,1);return ok;}
+static int sfillp_rst_fast(lua_State *L){
+ if(!sfillp_native(L)){lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,lua_gettop(L)-1,LUA_MULTRET);return lua_gettop(L);}
+ for(int i=0;i<=5;i++){sprite_pattern[i]=0;sprite_pair[i]=(unsigned short)i;}
+ return 0;
+}
+static int sfillp_dissolve_fast(lua_State *L){
+ if(!sfillp_native(L)){lua_pushvalue(L,lua_upvalueindex(1));lua_insert(L,1);lua_call(L,lua_gettop(L)-1,LUA_MULTRET);return lua_gettop(L);}
+ double c=luaL_checknumber(L,1),m=fmax(fmin(0,c),fmin(fmax(0,c),1));
+ lua_getglobal(L,"pat");if(!lua_istable(L,-1))return luaL_error(L,"attempt to index global 'pat' (a nil value)");
+ lua_rawgeti(L,-1,1+(int)floor(m*15));int v=luaL_checkint(L,-1);lua_pop(L,2);
+ for(int i=0;i<=5;i++){sprite_pattern[i]=(unsigned short)v;sprite_pair[i]=(unsigned short)i;}
+ return 0;
+}
+/* code.lua _draw depth list: a={} for i=0,15 do add(a,{}) end
+ * for e in all(ents) do add(a[e.dp+1],e) end */
+static int depth_lists(lua_State *L){
+ luaL_checktype(L,1,LUA_TTABLE);
+ lua_createtable(L,16,0);int a=lua_gettop(L);int len[16]={0};
+ for(int i=1;i<=16;i++){lua_newtable(L);lua_rawseti(L,a,i);}
+ for(int i=1;;i++){
+  lua_rawgeti(L,1,i);if(lua_isnil(L,-1)){lua_pop(L,1);break;}
+  int e=lua_gettop(L);lua_getfield(L,e,"dp");
+  if(!lua_isnumber(L,-1))return luaL_error(L,"attempt to perform arithmetic on field 'dp'");
+  lua_Number dp=lua_tonumber(L,-1)+1;lua_pop(L,1);
+  int slot=(int)dp;if((lua_Number)slot!=dp||slot<1||slot>16)return luaL_error(L,"bad argument #1 to 'add' (table expected, got nil)");
+  lua_rawgeti(L,a,slot);lua_pushvalue(L,e);lua_rawseti(L,-2,++len[slot-1]);lua_pop(L,2);
+ }
+ return 1;
+}
+/* code.lua upe() physics block (velocity, friction, gravity, shake decay). */
+static lua_Number upe_num(lua_State *L,const char *k){
+ lua_getfield(L,1,k);if(!lua_isnumber(L,-1))luaL_error(L,"attempt to perform arithmetic on field '%s'",k);
+ lua_Number v=lua_tonumber(L,-1);lua_pop(L,1);return v;
+}
+static void upe_set(lua_State *L,const char *k,lua_Number v){lua_pushnumber(L,v);lua_setfield(L,1,k);}
+static int upe_phys(lua_State *L){
+ luaL_checktype(L,1,LUA_TTABLE);
+ upe_set(L,"t",upe_num(L,"t")+1);
+ lua_Number frict=upe_num(L,"frict"),vx=upe_num(L,"vx")*frict,vy;
+ upe_set(L,"vx",vx);vy=upe_num(L,"vy")*frict;upe_set(L,"vy",vy);
+ upe_set(L,"x",upe_num(L,"x")+vx);upe_set(L,"y",upe_num(L,"y")+vy);
+ lua_getfield(L,1,"vz");int has_vz=lua_toboolean(L,-1);lua_pop(L,1);
+ if(has_vz){
+  lua_Number vz=upe_num(L,"vz")*frict;upe_set(L,"vz",vz);
+  lua_getfield(L,1,"z");lua_Number z=0;if(lua_toboolean(L,-1)){if(!lua_isnumber(L,-1))return luaL_error(L,"attempt to perform arithmetic on field 'z'");z=lua_tonumber(L,-1);}lua_pop(L,1);
+  upe_set(L,"z",z+vz);upe_set(L,"vz",vz+upe_num(L,"we"));
+ }else upe_set(L,"vy",vy+upe_num(L,"we"));
+ lua_Number dcx=upe_num(L,"dcx")*.9;upe_set(L,"dcx",dcx);
+ lua_Number dcy=upe_num(L,"dcy")*.9;upe_set(L,"dcy",dcy);
+ if(fabs(dcx)<1)upe_set(L,"dcx",0);
+ if(fabs(dcy)<1)upe_set(L,"dcy",0);
+ return 0;
+}
+static void wrap_lua_global(lua_State *L,const char *name,lua_CFunction f){
+ lua_getglobal(L,name);if(lua_isfunction(L,-1)&&!lua_iscfunction(L,-1)){lua_pushcclosure(L,f,1);lua_setglobal(L,name);}else lua_pop(L,1);
+}
 void sg_graphics_fast_api(lua_State *L){
  reg(L,"pal_rst",palette_reset);
+ reg(L,"sg_trace_dist",trace_dist);
+ reg(L,"sg_depth_lists",depth_lists);reg(L,"sg_upe_phys",upe_phys);
+ wrap_lua_global(L,"sfillp_rst",sfillp_rst_fast);wrap_lua_global(L,"sfillp_dissolve",sfillp_dissolve_fast);
+ reg(L,"sg_tick_counters",tick_counters);
+ lua_getglobal(L,"split");if(lua_isfunction(L,-1)&&!lua_iscfunction(L,-1)){lua_pop(L,1);reg(L,"split",split_exact);}else lua_pop(L,1);
  lua_getglobal(L,"apal");
  if(lua_isfunction(L,-1)){lua_pushcclosure(L,apal_batch,1);lua_setglobal(L,"apal");}
  else lua_pop(L,1);

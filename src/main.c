@@ -18,6 +18,7 @@
 #include "render_pool.h"
 #include "controls.h"
 #include "diagnostics.h"
+#include "input_replay.h"
 #include <psp2/power.h>
 #include <psp2/kernel/cpu.h>
 #define WIDTH 960
@@ -61,11 +62,11 @@ static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_START)out|=SG_START;
  if(v&SCE_CTRL_SELECT)out|=SG_SELECT;
  return out;}
-typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor,fps_limit;} Config;
+typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor,fps_limit,lua_jit,replay;} Config;
 static Config settings(void){
  /* Safe defaults for the shipped profiling build.  A stale CFG must not
   * silently disable measurements or revert the requested 500 MHz profile. */
- Config c={500,3,2,1,1,2,60};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
+ Config c={500,3,2,1,1,2,60,0,0};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
  if(f){char line[128],key[80];int value;while(fgets(line,sizeof(line),f))if(sscanf(line,"%79[^=]=%d",key,&value)==2){
   if(!strcmp(key,"cpu_mhz")&&(value==333||value==444))c.cpu=value;
   if(!strcmp(key,"workers")&&value>=1&&value<=3)c.workers=value;
@@ -74,7 +75,13 @@ static Config settings(void){
   if(!strcmp(key,"profile"))c.profile=value!=0;
   if(!strcmp(key,"resolution_divisor")&&(value==1||value==2))c.divisor=value;
   if(!strcmp(key,"fps_limit")&&(value==30||value==60))c.fps_limit=value;
- }fclose(f);}return c;
+  if(!strcmp(key,"lua_jit"))c.lua_jit=value!=0;
+  if(!strcmp(key,"profile_funcs"))sg_set_profile_funcs(value);
+  if(!strcmp(key,"profile_lines"))sg_set_profile_lines(value);
+  /* input_replay wins over input_record when both are set. */
+  if(!strcmp(key,"input_record")&&value&&c.replay!=2)c.replay=1;
+  if(!strcmp(key,"input_replay")&&value)c.replay=2;
+ }fclose(f);}sg_set_jit_mode(c.lua_jit);return c;
 }
 static const char *run_gpu(Config config,FILE *log){
  int scene_width=320/config.divisor,scene_height=180/config.divisor;
@@ -90,6 +97,7 @@ static const char *run_gpu(Config config,FILE *log){
  loading_screen(error_pixels);
  SgGpuStats gpu={0};
  if(!sg_gpu_present(error_pixels,WIDTH,HEIGHT,0,0,0xff000000,&gpu)){free(pixels);free(error_pixels);if(csv)fclose(csv);return "gpu_startup_error";}
+ SgReplay replay;sg_replay_start(&replay,config.replay,"ux0:data/shotgunk2vita",log);
  int running=sg_boot("ux0:data/shotgunk2vita",log);unsigned frames=0;
  if(log){fprintf(log,"bootstrap_result=%d error=%s\n",running,running?"none":sg_error());fflush(log);}
  int workers=sg_render_pool_start(config.workers,log);
@@ -102,6 +110,8 @@ static const char *run_gpu(Config config,FILE *log){
   if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
   for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
+  /* Recorded/replayed inputs are the ones the game step consumes. */
+  if(running)sg_replay_frame(&replay,&buttons,&pad.lx,&pad.ly,&pad.rx,&pad.ry,buttons,log);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
   /* Front touch is intentionally disabled; rear touch remains L1/R1 above. */
   if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
@@ -110,6 +120,7 @@ static const char *run_gpu(Config config,FILE *log){
   uint64_t present_start=sg_now_us();if(running)sg_render_pool_present(pixels,scene_width,scene_height);uint64_t present_end=sg_now_us();SgRenderStats render=sg_render_pool_stats();
   if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)error_pixels[i]=0xff201018;text(error_pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(error_pixels,sg_error(),110);}
   sg_diag_phase(SG_DIAG_DISPLAY);
+  if(replay.mode==2&&log&&frames%600==0)fprintf(log,"replay_check frame=%u entities=%llu lua_kb=%u\n",frames,(unsigned long long)sg_perf.entities,sg_lua_memory_kb());
   int display_ok=sg_gpu_present(running?pixels:error_pixels,running?scene_width:WIDTH,running?scene_height:HEIGHT,buttons,running,running?sg_present_background():0xff201018,&gpu);
   uint64_t end=sg_now_us();uint64_t copy_us=gpu.upload_us;
   if(!display_ok){if(log)fprintf(log,"gpu_display_failed\n");exit_reason="gpu_display_error";break;}
@@ -123,6 +134,7 @@ static const char *run_gpu(Config config,FILE *log){
  }
  sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"clean");
  if(log)fprintf(log,"exit_reason=%s\n",exit_reason?exit_reason:running?"clean":"lua_error");
+ sg_replay_stop(&replay,log);sg_set_save_redirect(NULL);
  sg_render_pool_stop();sg_close();if(csv)fclose(csv);free(pixels);free(error_pixels);
  return exit_reason?exit_reason:running?"clean":"lua_error";
 }
