@@ -24,10 +24,13 @@ static unsigned short sprite_pattern[256],sprite_pair[256];
 static unsigned char blend_table[256][256];
 static int blend_identity=1,blend_changed;
 typedef struct{unsigned cp;unsigned char *p;int valid,w,h,ox,oy,advance;} Glyph;
-typedef struct{char key[80];unsigned char *data;stbtt_fontinfo info;float scale;int surface,ttf,dy,h,space;unsigned cp[256];int gx[256],gw[256],glyph_index[256],glyphs;Glyph cache[256];} Font;
+typedef struct{char key[80];unsigned char *data;stbtt_fontinfo info;float scale;int surface,ttf,dy,h,space,fallback;unsigned cp[256];int gx[256],gw[256],glyph_index[256],glyphs;Glyph cache[256];} Font;
 static Font fonts[16];static int fontcount,current_font;
 static void free_glyphs(Font *f){for(int i=0;i<256;i++){stbtt_FreeBitmap(f->cache[i].p,NULL);memset(&f->cache[i],0,sizeof(Glyph));}}
 static Glyph *cached_glyph(Font *f,unsigned cp){
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ if(f->ttf&&f->fallback>=0&&!stbtt_FindGlyphIndex(&f->info,cp))return cached_glyph(&fonts[f->fallback],cp);
+#endif
  Glyph *g=&f->cache[cp&255];
  if(g->valid&&g->cp==cp){sg_perf.glyph_hits++;return g;}
  uint64_t start=sg_now_us();stbtt_FreeBitmap(g->p,NULL);memset(g,0,sizeof(*g));
@@ -317,7 +320,7 @@ static int shadow_batch(lua_State *L){
 static int blend(lua_State *L){if(!lua_gettop(L)){blend_identity=1;blend_changed=0;for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;}else {int a=luaL_checkint(L,1)&255,b=luaL_checkint(L,2)&255,v=luaL_checkint(L,3)&255;blend_changed+=(v!=a)-(blend_table[a][b]!=a);blend_table[a][b]=v;blend_identity=!blend_changed;}return 0;}
 static int exe(lua_State *L){int d=dst,s=sheet,cx=camx,cy=camy,p=pattern,tr=pattern_transparent,ic=ink,cx0=clipx,cy0=clipy,cw=clipw,ch=cliph,f=current_font;unsigned char map[256];memcpy(map,mapping,256);lua_pushvalue(L,1);int status=lua_pcall(L,0,0,0);dst=d;sheet=s;camx=cx;camy=cy;pattern=p;pattern_transparent=tr;ink=ic;clipx=cx0;clipy=cy0;clipw=cw;cliph=ch;current_font=f;memcpy(mapping,map,256);if(status)return lua_error(L);return 0;}
 static int patterns(lua_State *L){lua_newtable(L);int x=luaL_checkint(L,1),y=luaL_checkint(L,2),n=luaL_checkint(L,3);for(int i=0;i<n;i++){Surface *s=&surfaces[sheet];int value=0;for(int yy=0;yy<4;yy++)for(int xx=0;xx<4;xx++)if(s->p[(y+yy)*s->w+x+i*4+xx])value|=1<<(yy*4+xx);lua_pushinteger(L,value);lua_rawseti(L,-2,i+1);}return 1;}
-static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=luaL_optstring(L,3,"default");int id;for(id=0;id<fontcount;id++)if(!strcmp(fonts[id].key,key))break;if(id==fontcount){if(fontcount==16)return luaL_error(L,"Font limit");fontcount++;}Font *f=&fonts[id];free_glyphs(f);free(f->data);memset(f,0,sizeof(*f));for(int i=0;i<256;i++)f->glyph_index[i]=-1;snprintf(f->key,sizeof(f->key),"%s",key);f->space=4;f->h=8;
+static int newfont(lua_State *L){const char *path=luaL_checkstring(L,1),*key=luaL_optstring(L,3,"default");int id;for(id=0;id<fontcount;id++)if(!strcmp(fonts[id].key,key))break;if(id==fontcount){if(fontcount==16)return luaL_error(L,"Font limit");fontcount++;}Font *f=&fonts[id];free_glyphs(f);free(f->data);memset(f,0,sizeof(*f));f->fallback=-1;for(int i=0;i<256;i++)f->glyph_index[i]=-1;snprintf(f->key,sizeof(f->key),"%s",key);f->space=4;f->h=8;
  if(strstr(path,".ttf")){char full[2048];snprintf(full,sizeof(full),"%s/%s",data_root,path);FILE *file=fopen(full,"rb");if(!file)return luaL_error(L,"Missing font %s",full);fseek(file,0,SEEK_END);long n=ftell(file);rewind(file);if(n<1||n>8*1024*1024){fclose(file);return luaL_error(L,"Font size limit");}f->data=malloc(n);if(!f->data){fclose(file);return luaL_error(L,"Font allocation failed");}size_t got=fread(f->data,1,n,file);fclose(file);if(got!=(size_t)n||!stbtt_InitFont(&f->info,f->data,0))return luaL_error(L,"Invalid font");f->ttf=1;f->h=luaL_checkint(L,2);f->scale=stbtt_ScaleForPixelHeight(&f->info,(float)f->h);
  }else{char name[100];snprintf(name,sizeof(name),"font_%s",key);f->surface=load(L,path,name,0);Surface *s=&surfaces[f->surface];const unsigned char *chars=(const unsigned char *)luaL_checkstring(L,2);int x=0;while(*chars&&x<s->w&&f->glyphs<256){while(x<s->w){int used=0;for(int y=0;y<s->h;y++)used|=s->p[y*s->w+x];if(used)break;x++;}int start=x;while(x<s->w){int used=0;for(int y=0;y<s->h;y++)used|=s->p[y*s->w+x];if(!used)break;x++;}int g=f->glyphs++;f->cp[g]=codepoint(&chars);f->gx[g]=start;f->gw[g]=x-start;if(f->cp[g]<256)f->glyph_index[f->cp[g]]=g;}f->h=s->h+1;}
  lua_pushstring(L,key);return 1;}
@@ -342,7 +345,36 @@ static int drawtext(const char *str,int x,int y,int c,int draw){Font *f=&fonts[c
 static int text(lua_State *L){const char *str=luaL_checkstring(L,1);if(lua_gettop(L)<3){fprintf(stdout,"%s\n",str);lua_pushinteger(L,0);return 1;}int x=luaL_checkint(L,2),y=luaL_checkint(L,3),c=luaL_optint(L,4,ink);lua_pushinteger(L,drawtext(str,x,y,c,1));return 1;}
 static int width(lua_State *L){lua_pushinteger(L,drawtext(luaL_checkstring(L,1),0,0,ink,0));return 1;}
 static int bprint(lua_State *L){const char *str=luaL_checkstring(L,1);int start=luaL_checkint(L,2),x=start,y=luaL_checkint(L,3),w=luaL_checkint(L,4),c=luaL_optint(L,5,ink);const unsigned char *p=(const unsigned char *)str;while(*p){const unsigned char *begin=p;unsigned cp=codepoint(&p);int a=advance(&fonts[current_font],cp);if(cp=='\n'||x+a>start+w){x=start;y+=fonts[current_font].h;if(cp=='\n')continue;}char glyph[8]={0};size_t n=(size_t)(p-begin);if(n<sizeof(glyph))memcpy(glyph,begin,n);drawtext(glyph,x,y,c,1);x+=a;}lua_pushinteger(L,y+fonts[current_font].h);return 1;}
-static int fntspec(lua_State *L){Font *f=&fonts[current_font];const char *op=luaL_checkstring(L,1);if(!strcmp(op,"name")){lua_pushstring(L,f->key);return 1;}int *n=!strcmp(op,"dy")?&f->dy:!strcmp(op,"space")?&f->space:&f->h;if(lua_gettop(L)>1)*n=luaL_checkint(L,2);lua_pushinteger(L,*n);return 1;}
+static int fntspec(lua_State *L){
+ Font *f=&fonts[current_font];const char *op=luaL_checkstring(L,1);
+ if(!strcmp(op,"name")){lua_pushstring(L,f->key);return 1;}
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ if(!strcmp(op,"fallback")){
+  if(lua_gettop(L)>1){
+   const char *name=luaL_checkstring(L,2);int i;
+   for(i=0;i<fontcount;i++)if(!strcmp(fonts[i].key,name))break;
+   if(i==fontcount)return luaL_error(L,"Unknown fallback font %s",name);
+   for(int j=i;j>=0;j=fonts[j].fallback)if(j==current_font)return luaL_error(L,"Cyclic fallback font");
+   f->fallback=i;
+  }
+  if(f->fallback>=0)lua_pushstring(L,fonts[f->fallback].key);else lua_pushnil(L);
+  return 1;
+ }
+#endif
+ int *n=!strcmp(op,"dy")?&f->dy:!strcmp(op,"space")?&f->space:&f->h;
+ if(lua_gettop(L)>1)*n=luaL_checkint(L,2);lua_pushinteger(L,*n);return 1;
+}
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+static int textheight(lua_State *L){
+ const unsigned char *p=(const unsigned char *)luaL_optstring(L,1,"");
+ int width=luaL_optint(L,2,0x3fffffff),x=0,h=fonts[current_font].h,lines=1;
+ if(width<1)return luaL_error(L,"Invalid text width");
+ while(*p){unsigned cp=codepoint(&p);int a=advance(&fonts[current_font],cp);
+  if(cp=='\n'||x+a>width){lines++;x=0;}if(cp!='\n')x+=a;
+ }
+ lua_pushinteger(L,lines*h);return 1;
+}
+#endif
 static int measured_graphics(lua_State*L){
  lua_CFunction f=lua_tocfunction(L,lua_upvalueindex(1));int group=lua_tointeger(L,lua_upvalueindex(2));
  sg_perf.gfx_calls[group]++;if(!sg_perf.gfx_sample)return f(L);
@@ -359,6 +391,9 @@ void sg_graphics_init(lua_State *L,const char *root){snprintf(data_root,sizeof(d
  for(int i=0;i<256;i++){sprite_pattern[i]=0;sprite_pair[i]=i|(i<<8);}
  for(int i=0;i<256;i++)for(int j=0;j<256;j++)blend_table[i][j]=i;
  reg(L,"newsrf",newsrf);reg(L,"palette",palette);reg(L,"target",target);reg(L,"spritesheet",spritesheet);reg(L,"sprgrid",sprgrid);reg(L,"camera",camera);reg(L,"tcamera",tcamera);reg(L,"cls",cls);reg(L,"color",color);reg(L,"rectfill",rectfill);reg(L,"line",line);reg(L,"circfill",circle);reg(L,"sspr",sspr);reg(L,"asspr",asspr);reg(L,"spr",spr);reg(L,"sget",sget);reg(L,"srfsize",size);reg(L,"pal",pal);reg(L,"palt",palt);reg(L,"newwin",newwin);reg(L,"get_patterns",patterns);reg(L,"winspec",noop);reg(L,"fpslimit",fpslimit);reg(L,"shdrf",noop);
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ reg(L,"strheight",textheight);
+#endif
  reg(L,"newfnt",newfont);reg(L,"font",selectfont);reg(L,"strwidth",width);reg(L,"fntspec",fntspec);reg(L,"print",text);
  reg(L,"clip",clip);reg(L,"delsrf",delsrf);reg(L,"fillp",fillp);reg(L,"rect",rect);reg(L,"pset",pset);reg(L,"exe",exe);
  reg(L,"sfillp",sfillp);reg(L,"bprint",bprint);

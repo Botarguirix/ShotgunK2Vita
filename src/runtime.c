@@ -107,7 +107,11 @@ static int load_vita_script(lua_State *L,const char *path,const char *name){
  size_t got=fread(source,1,(size_t)size,f);fclose(f);source[got]=0;
  if(got!=(size_t)size){free(source);lua_pushstring(L,"Game script read incomplete");return LUA_ERRFILE;}
  if(!strcmp(name,"code/menu.lua")){
-  char *a=strstr(source,"local str=\"Join our Discord!\""),*b=a?strstr(a,"-- CASTLE"):NULL;
+  char *a=strstr(source,"local str=\"Join our Discord!\"");
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+  if(!a)a=strstr(source,"local str=\"Join us on Discord!\"");
+#endif
+  char *b=a?strstr(a,"-- CASTLE"):NULL;
   if(a&&b){for(char*q=a;q<b;q++)if(*q!='\n'&&*q!='\r')*q=' ';logline("vita_external_links=removed");}
   else logline("vita_external_links=pattern_not_found");
  }else{
@@ -542,7 +546,25 @@ int sg_boot(const char *root,FILE *log) {
         10000
 #endif
     );
-    char path[2048];resolve("code.lua",path,sizeof(path));
+    char path[2048];
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+    resolve("sg_steam_profile.lua",path,sizeof(path));
+    FILE *steam_profile=fopen(path,"rb");
+    if(steam_profile){
+        fclose(steam_profile);
+        int steam_status=luaL_loadfile(state,path);
+        if(!steam_status)steam_status=protected_call(state,0,1);
+        if(!steam_status&&!lua_istable(state,-1)){lua_pushstring(state,"Invalid Steam profile");steam_status=1;}
+        if(steam_status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
+        lua_setglobal(state,"SG_STEAM_ASSETS");
+        resolve("sg_steam_compat.lua",path,sizeof(path));
+        steam_status=luaL_loadfile(state,path);
+        if(!steam_status)steam_status=protected_call(state,0,0);
+        if(steam_status){snprintf(failure,sizeof(failure),"%s",lua_tostring(state,-1));logline(failure);return 0;}
+        logline("steam_sgr_bridge=experimental");
+    }
+#endif
+    resolve("code.lua",path,sizeof(path));
     logline("ShotgunK2Vita LuaJIT bootstrap; unsupported APIs stop execution");
     sg_diag_event("load",path);
     int status=load_vita_script(state,path,"code.lua");if(!status)status=protected_call(state,0,0);

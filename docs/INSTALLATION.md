@@ -47,3 +47,10 @@ Requires a homebrew-enabled PS Vita with VitaShell, the 00.78 VPK and data prepa
 Front touch is disabled. Exit through the menu; on the runtime error screen press START to exit. Diagnostics stay in `ux0:data/shotgunk2vita/logs/`; share privately if they contain personal information.
 
 Console check: open menu, start a game, move and confirm with ×, aim/shoot/reload, switch rear-touch pages, pause, lose and retry, exit and reopen to check saves. Hardware acceptance for 00.78 remains pending.
+
+
+## Investigación Steam SGR / Steam SGR investigation
+
+ES: La rama `codex/steam-sgr-feasibility` evalúa datos preparados exclusivamente desde `data.sgr` con C/LuaJIT. Hay pruebas PC de menú, partida y audio; no hay un VPK Steam ni aceptación en consola. Conserva intacta la entrega 00.78. [Pasadas, herramientas y límites](STEAM_SGR_FEASIBILITY.md).
+
+EN: Branch `codex/steam-sgr-feasibility` evaluates data prepared exclusively from `data.sgr` with C/LuaJIT. PC menu, game and audio checks exist; no Steam VPK or console acceptance is provided. Delivery 00.78 remains intact. [Passes, tools and limits](STEAM_SGR_FEASIBILITY.md#english).

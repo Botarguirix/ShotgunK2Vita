@@ -1,5 +1,8 @@
 # Shotgun King Vita+ · ShotgunK2Vita
 
+> **Rama experimental / Experimental branch:** `codex/steam-sgr-feasibility`. Preparación desde Steam `data.sgr`, sin APK; pruebas PC con C/LuaJIT. / Preparation from Steam `data.sgr`, without an APK; PC tests with C/LuaJIT. [Resultados y límites / Results and limits](docs/STEAM_SGR_FEASIBILITY.md). No hay un VPK Steam validado. / No validated Steam VPK is provided.
+
+
 [Español](#español) · [English](#english)
 
 ## Español
