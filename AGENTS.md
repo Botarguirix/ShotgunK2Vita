@@ -1,4 +1,4 @@
-# Proceso de iteraciones ShotgunK2Vita
+# Proceso de iteraciones ShotgunKing2Vita
 
 Seguir docs/ITERATION_PROCESS.md para cada entrega, adaptado del proyecto local
 Touhou 7.5. La versión y nombre vigentes están en SG_BUILD_VERSION y SG_BUILD_NAME de CMake.

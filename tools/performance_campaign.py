@@ -111,7 +111,7 @@ def run(args):
     (out/'summary.json').write_text(json.dumps(report, indent=2))
     (out/'status.json').write_text(json.dumps({'status': report['status']}))
     table = ''.join(f'<tr><td>{g["scene"]}</td><td>{g["workers"]}</td><td>{g["median_mean_ms"]:.3f}</td><td>{g["median_p95_ms"]:.3f}</td><td>{g["min_mean_ms"]:.3f}–{g["max_mean_ms"]:.3f}</td></tr>' for g in groups)
-    (out/'report.html').write_text('<meta charset="utf-8"><title>ShotgunK2Vita campaign</title><h1>Pruebas PC; hardware pendiente</h1><p>Sin límite de FPS ni VSync. No predice FPS de Vita. Huellas de imagen equivalentes entre pases.</p><table border="1"><tr><th>Escena</th><th>Workers CPU</th><th>Mediana media ms</th><th>Mediana P95 ms</th><th>Rango medias ms</th></tr>'+table+'</table><pre>'+html.escape(json.dumps(comparisons, indent=2))+'</pre>', encoding='utf-8')
+    (out/'report.html').write_text('<meta charset="utf-8"><title>ShotgunKing2Vita campaign</title><h1>Pruebas PC; hardware pendiente</h1><p>Sin límite de FPS ni VSync. No predice FPS de Vita. Huellas de imagen equivalentes entre pases.</p><table border="1"><tr><th>Escena</th><th>Workers CPU</th><th>Mediana media ms</th><th>Mediana P95 ms</th><th>Rango medias ms</th></tr>'+table+'</table><pre>'+html.escape(json.dumps(comparisons, indent=2))+'</pre>', encoding='utf-8')
     print(report['status'], out/'report.html', flush=True)
 
 

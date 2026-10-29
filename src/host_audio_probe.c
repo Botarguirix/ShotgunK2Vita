@@ -11,7 +11,10 @@ static void le32(FILE *f,uint32_t n){unsigned char p[4]={n,n>>8,n>>16,n>>24};fwr
 int main(int argc,char **argv){
  if(argc<3)return 2;FILE *f=fopen(argv[2],"wb");if(!f)return 2;
  lua_State *L=luaL_newstate();luaL_openlibs(L);sg_audio_init(L,argv[1],stdout);
- int ok=script(L,"newsfx('assets/sfx/shoot.wav','shot');newmus('assets/music/title_A.mp3','A');newmus('assets/music/title_B.mp3','B');music('A',0,false,0);nxtmusic('B',-1,true)");
+ /* Optional third argument picks the music format (mp3 or ogg). */
+ char setup[512];const char *ext=argc>3?argv[3]:"mp3";
+ snprintf(setup,sizeof(setup),"newsfx('assets/sfx/shoot.wav','shot');newmus('assets/music/title_A.%s','A');newmus('assets/music/title_B.%s','B');music('A',0,false,0);nxtmusic('B',-1,true)",ext,ext);
+ int ok=script(L,setup);
  const unsigned saved_frames=44100*8;fwrite("RIFF",1,4,f);le32(f,36+saved_frames*4);fwrite("WAVEfmt ",1,8,f);le32(f,16);
  unsigned char fmt[4]={1,0,2,0};fwrite(fmt,1,4,f);le32(f,44100);le32(f,44100*4);unsigned char align[4]={4,0,16,0};fwrite(align,1,4,f);fwrite("data",1,4,f);le32(f,saved_frames*4);
  int16_t block[2048*2];uint64_t nonzero=0,total=0;unsigned remaining=saved_frames;

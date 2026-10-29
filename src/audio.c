@@ -8,6 +8,9 @@
 #include <math.h>
 #define DR_MP3_IMPLEMENTATION
 #include "dr_mp3.h"
+/* Steam data.sgr ships Ogg Vorbis music; played directly, no conversion. */
+#define STB_VORBIS_HEADER_ONLY
+#include "stb_vorbis.c"
 #ifdef SG_VITA
 #include <psp2/audioout.h>
 #include <psp2/kernel/threadmgr.h>
@@ -22,11 +25,12 @@
 typedef struct {char key[96],path[1536];int16_t *pcm;uint32_t frames,rate;int channels,music;float volume;} Asset;
 typedef struct {int asset,channel,type,loop;float volume,pan,pitch,fade;} Command;
 typedef struct {int asset;uint64_t position;uint32_t step;float volume,pan;} Voice;
-enum {PLAY_FX,PLAY_MUSIC,NEXT_MUSIC,FX_GAIN,MUSIC_GAIN,DELETE_FX};
+enum {PLAY_FX,PLAY_MUSIC,NEXT_MUSIC,FX_GAIN,MUSIC_GAIN,DELETE_FX,CHANNEL_VOLUME,CHANNEL_PAN};
 static Asset assets[ASSETS];static int asset_count;
 static Command queue[QUEUE];static _Atomic unsigned head,tail,dropped;
 static Voice voices[CHANNELS];static float sfx_gain=1,music_gain=1,query_sfx=1,query_music=1;
-static drmp3 decoder;static int decoder_open,music_id=-1,music_loop,next_id=-1,next_loop;
+static drmp3 decoder;static stb_vorbis *vorbis;static int decoder_open,music_id=-1,music_loop,next_id=-1,next_loop;
+static unsigned music_channels,music_rate;
 static int16_t music_pcm[4096*2];static uint64_t music_phase;static unsigned music_frames;
 static float fade_gain=1,fade_target=1,fade_step;static int stop_after_fade;
 static char data_root[1024];static FILE *audio_log,*setup_log;
@@ -97,16 +101,38 @@ static int volume(lua_State *L,int music){
 static int fxvol(lua_State *L){return volume(L,0);}
 static int musvol(lua_State *L){return volume(L,1);}
 static int delfx(lua_State *L){int id=find_asset(luaL_checkstring(L,1),0);push((Command){.type=DELETE_FX,.asset=id,.channel=-1});return 0;}
+/* chnlfx(channel|{channels}, "volume"|"pan"|"speed", v) on the fx voices;
+ * speed is not supported and ignored. Commands of one Lua frame are applied
+ * together by the mixer, so lockaudio()/unlockaudio() need not do anything. */
+static int chnlfx(lua_State *L){
+ const char *param=luaL_checkstring(L,2);float v=(float)luaL_checknumber(L,3);
+ int type=!strcmp(param,"volume")?CHANNEL_VOLUME:!strcmp(param,"pan")?CHANNEL_PAN:-1;if(type<0)return 0;
+ if(type==CHANNEL_VOLUME)v=clamp(v,0,1);else v=clamp(v,-1,1);
+ if(lua_istable(L,1)){int n=(int)lua_objlen(L,1);for(int i=1;i<=n;i++){lua_rawgeti(L,1,i);push((Command){.type=type,.channel=(int)lua_tointeger(L,-1),.volume=v});lua_pop(L,1);}}
+ else push((Command){.type=type,.channel=luaL_checkint(L,1),.volume=v});
+ return 0;
+}
+static int audio_lock(lua_State *L){(void)L;return 0;}
 
-static void close_music(void){if(decoder_open)drmp3_uninit(&decoder);decoder_open=0;music_id=-1;music_frames=0;music_phase=0;}
+static void close_music(void){if(decoder_open){if(vorbis)stb_vorbis_close(vorbis);else drmp3_uninit(&decoder);}vorbis=NULL;decoder_open=0;music_id=-1;music_frames=0;music_phase=0;}
+static unsigned read_music(void){
+ if(vorbis)return (unsigned)stb_vorbis_get_samples_short_interleaved(vorbis,(int)music_channels,music_pcm,4096*(int)music_channels);
+ return (unsigned)drmp3_read_pcm_frames_s16(&decoder,4096,music_pcm);
+}
+static void rewind_music(void){if(vorbis)stb_vorbis_seek_start(vorbis);else drmp3_seek_to_pcm_frame(&decoder,0);}
 static int open_music(int id,int loop){
  close_music();if(id<0)return 1;
- sg_diag_event("mp3_open",assets[id].path);
- if(!drmp3_init_file(&decoder,assets[id].path,NULL)){atomic_fetch_add(&music_failures,1);if(audio_log)fprintf(audio_log,"audio_mp3_open_failed=%s\n",assets[id].path);return 0;}
- decoder_open=1;if(decoder.channels<1||decoder.channels>2||decoder.sampleRate<8000||decoder.sampleRate>96000){close_music();return 0;}
+ size_t n=strlen(assets[id].path);int ogg=n>4&&!strcmp(assets[id].path+n-4,".ogg");
+ sg_diag_event(ogg?"ogg_open":"mp3_open",assets[id].path);
+ int opened=0;
+ if(ogg){int error=0;vorbis=stb_vorbis_open_filename(assets[id].path,&error,NULL);
+  if(vorbis){stb_vorbis_info info=stb_vorbis_get_info(vorbis);music_channels=(unsigned)info.channels;music_rate=info.sample_rate;opened=1;}}
+ else if(drmp3_init_file(&decoder,assets[id].path,NULL)){music_channels=decoder.channels;music_rate=decoder.sampleRate;opened=1;}
+ if(!opened){atomic_fetch_add(&music_failures,1);if(audio_log)fprintf(audio_log,"audio_music_open_failed=%s\n",assets[id].path);return 0;}
+ decoder_open=1;if(music_channels<1||music_channels>2||music_rate<8000||music_rate>96000){close_music();return 0;}
  music_id=id;music_loop=loop;
  atomic_fetch_add(&music_starts,1);
- if(audio_log)fprintf(audio_log,"audio_music=%s hz=%u channels=%u\n",assets[id].key,decoder.sampleRate,decoder.channels);
+ if(audio_log)fprintf(audio_log,"audio_music=%s hz=%u channels=%u codec=%s\n",assets[id].key,music_rate,music_channels,vorbis?"vorbis":"mp3");
  return 1;
 }
 static void commands(void){
@@ -122,6 +148,8 @@ static void commands(void){
   }else if(c.type==NEXT_MUSIC){next_id=c.asset;next_loop=c.loop;}
   else if(c.type==FX_GAIN)sfx_gain=c.volume;
   else if(c.type==MUSIC_GAIN)music_gain=c.volume;
+  else if(c.type==CHANNEL_VOLUME&&c.channel>=0&&c.channel<CHANNELS)voices[c.channel].volume=c.volume;
+  else if(c.type==CHANNEL_PAN&&c.channel>=0&&c.channel<CHANNELS)voices[c.channel].pan=c.volume;
  }atomic_store_explicit(&tail,t,memory_order_release);
 }
 
@@ -130,17 +158,17 @@ static int music_sample(int *left,int *right){
  unsigned pos=(unsigned)(music_phase>>16);
  if(pos>=music_frames){
   if(music_frames)music_phase-=(uint64_t)music_frames<<16;
-  music_frames=(unsigned)drmp3_read_pcm_frames_s16(&decoder,4096,music_pcm);
+  music_frames=read_music();
   if(!music_frames){
    if(next_id>=0){int id=next_id;next_id=-1;open_music(id,next_loop);}
-   else if(music_loop){drmp3_seek_to_pcm_frame(&decoder,0);music_phase=0;atomic_fetch_add(&music_loops,1);}
+   else if(music_loop){rewind_music();music_phase=0;atomic_fetch_add(&music_loops,1);}
    else {close_music();return 0;}
    if(!decoder_open)return 0;
-   music_frames=(unsigned)drmp3_read_pcm_frames_s16(&decoder,4096,music_pcm);if(!music_frames){close_music();return 0;}
+   music_frames=read_music();if(!music_frames){close_music();return 0;}
   }pos=(unsigned)(music_phase>>16);if(pos>=music_frames)pos=music_frames-1;
  }
- *left=music_pcm[pos*decoder.channels];*right=music_pcm[pos*decoder.channels+(decoder.channels==2)];
- music_phase+=((uint64_t)decoder.sampleRate<<16)/RATE;return 1;
+ *left=music_pcm[pos*music_channels];*right=music_pcm[pos*music_channels+(music_channels==2)];
+ music_phase+=((uint64_t)music_rate<<16)/RATE;return 1;
 }
 void sg_audio_mix(int16_t *out,unsigned frames){
  commands();
@@ -190,7 +218,7 @@ int sg_audio_start(FILE *log){
  audio_log=sg_diag_open("audio.log");
  if(!audio_log){char path[1536];snprintf(path,sizeof(path),"%s/audio.log",data_root);audio_log=fopen(path,"a");}
  if(audio_log)setvbuf(audio_log,NULL,_IOLBF,4096);
- audio_thread=sceKernelCreateThread("SG native audio",audio_entry,0x100000E0,0x20000,0,SCE_KERNEL_CPU_MASK_USER_2,NULL);
+ audio_thread=sceKernelCreateThread("SG native audio",audio_entry,0x100000E0,0x40000,0,SCE_KERNEL_CPU_MASK_USER_2,NULL);
  int rc=audio_thread<0?audio_thread:sceKernelStartThread(audio_thread,0,NULL);
  if(rc>=0)sg_diag_thread(SG_THREAD_AUDIO,audio_thread);
  if(log){fprintf(log,"audio_thread=%d start_rc=%d log=audio.log\n",audio_thread,rc);fflush(log);}
@@ -206,6 +234,7 @@ void sg_audio_init(lua_State *L,const char *root,FILE *log){
  for(int i=0;i<CHANNELS;i++)voices[i].asset=-1;
  reg(L,"newsfx",newfx);reg(L,"newmus",newmusic);reg(L,"sfx",playfx);reg(L,"music",playmusic);reg(L,"mus",playmusic);
  reg(L,"musvol",musvol);reg(L,"sfxvol",fxvol);reg(L,"nxtmusic",nextmusic);reg(L,"delsfx",delfx);
+ reg(L,"chnlfx",chnlfx);reg(L,"lockaudio",audio_lock);reg(L,"unlockaudio",audio_lock);
 }
 void sg_audio_close(void){
  atomic_store_explicit(&quit,1,memory_order_release);

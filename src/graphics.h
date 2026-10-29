@@ -10,6 +10,10 @@ void sg_graphics_set_output_divisor(int divisor);
 uint32_t sg_present_background(void);
 /* Surfaces and palette must remain immutable until all row jobs finish. */
 void sg_present_rows(uint32_t *pixels,int width,int height,int first,int last);
+/* Leave the hdtext overlay out of the scene; the GPU presenter draws the
+ * sg_overlay_export() pixels (RGBA, key transparent) on top at full size. */
+void sg_graphics_set_overlay_separate(int on);
+int sg_overlay_export(uint32_t *pixels,int max_w,int max_h,int *w,int *h);
 
 /* Install after game bootstrap; preserves pause palette suppression. */
 void sg_graphics_fast_api(lua_State *L);

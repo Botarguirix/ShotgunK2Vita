@@ -6,12 +6,12 @@ import subprocess
 from pathlib import Path
 
 
-def finalize(root, out, iteration):
+def finalize(root, out, iteration, evidence_dir=None):
     root, out = Path(root), Path(out)
     if (out / 'delivery-audit.json').exists():
         raise FileExistsError(f'Delivery already audited: {out}')
     # Reports stay private, including test fixtures and original received logs.
-    reports = root / 'reports/iterations' / iteration
+    reports = Path(evidence_dir) if evidence_dir else root / 'reports/iterations' / iteration
     if reports.is_dir():
         shutil.copytree(reports, out / 'evidence')
     for name in (f'STATUS_ITERATION{iteration[-2:]}.md',

@@ -1,14 +1,28 @@
 #pragma once
 #include <stdio.h>
+/* Data folder on the Vita; the Steam build is a separate app with its own. */
+#ifndef SG_DATA_ROOT
+#define SG_DATA_ROOT "ux0:data/shotgunk2vita"
+#endif
 int sg_boot(const char *root, FILE *log);
 const char *sg_error(void);
 int sg_should_quit(void);
+/* The game called run() (SUGAR cart reboot): relaunch the app. */
+int sg_restart_requested(void);
 void sg_close(void);
 int sg_step(unsigned buttons,int lx,int ly,int rx,int ry,int touch,int x,int y);
 void sg_report_state(void);
 unsigned sg_lua_memory_kb(void);
 void sg_set_fps_limit(int limit);
 int sg_get_fps_limit(void);
+/* Before sg_boot: drop the Lua hook and entity wrappers after bootstrap. */
+void sg_set_jit_mode(int on);
+/* Before sg_boot: time global Lua functions and log the top ones on spikes. */
+void sg_set_profile_funcs(int on);
+/* Before sg_boot: time-weighted Lua line sampler, top lines every 600 frames. */
+void sg_set_profile_lines(int on);
+/* Map "save/..." to this directory (NULL or "" restores the real save/). */
+void sg_set_save_redirect(const char *dir);
 #ifndef SG_VITA
 int sg_host_eval(const char *script);
 #endif

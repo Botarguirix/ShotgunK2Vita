@@ -18,7 +18,12 @@
 #include "render_pool.h"
 #include "controls.h"
 #include "diagnostics.h"
+#include "input_replay.h"
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+#include "steam_install.h"
+#endif
 #include <psp2/power.h>
+#include <psp2/appmgr.h>
 #include <psp2/kernel/cpu.h>
 #define WIDTH 960
 #define HEIGHT 544
@@ -34,19 +39,43 @@ static const unsigned char alphabet[26][7]={
 static const unsigned char digits[10][7]={
  {14,17,19,21,25,17,14},{4,12,4,4,4,4,14},{14,17,1,2,4,8,31},{30,1,1,14,1,1,30},{2,6,10,18,31,2,2},
  {31,16,16,30,1,1,30},{14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},{14,17,17,15,1,1,14}};
-static void text_at(uint32_t *p,const char *s,int start_x,int y){int x=start_x;for(;*s&&y<HEIGHT-16;s++){unsigned c=(unsigned char)*s;if(c>='a'&&c<='z')c-=32;if(c=='\n'||x>WIDTH-24){x=start_x;y+=20;if(c=='\n')continue;if(y>=HEIGHT-16)break;}const unsigned char *glyph=c>='A'&&c<='Z'?alphabet[c-'A']:c>='0'&&c<='9'?digits[c-'0']:NULL;if(glyph){for(int yy=0;yy<7;yy++)for(int xx=0;xx<5;xx++)if(glyph[yy]&(1<<(4-xx)))for(int j=0;j<2;j++)for(int i=0;i<2;i++)p[(y+yy*2+j)*WIDTH+x+xx*2+i]=0xffffffffu;}x+=12;}}
+static void text_at(uint32_t *p,const char *s,int start_x,int y){int x=start_x;for(;*s&&y<HEIGHT-16;s++){unsigned c=(unsigned char)*s;if(c>='a'&&c<='z')c-=32;if(c=='\n'||x>WIDTH-24){x=start_x;y+=20;if(c=='\n')continue;if(y>=HEIGHT-16)break;}static const unsigned char dot[7]={0,0,0,0,0,12,12};const unsigned char *glyph=c>='A'&&c<='Z'?alphabet[c-'A']:c>='0'&&c<='9'?digits[c-'0']:c=='.'?dot:NULL;if(glyph){for(int yy=0;yy<7;yy++)for(int xx=0;xx<5;xx++)if(glyph[yy]&(1<<(4-xx)))for(int j=0;j<2;j++)for(int i=0;i<2;i++)p[(y+yy*2+j)*WIDTH+x+xx*2+i]=0xffffffffu;}x+=12;}}
 static void text(uint32_t *p,const char *s,int y){text_at(p,s,18,y);}
-static void loading_screen(uint32_t *p){
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+/* Loader art from the VPK (tools/make_livearea.py) and the installed game's
+ * version; without the art the plain screen below is drawn. */
+static unsigned *loader_art;static char game_version[32];
+static void loader_screen(uint32_t *p,const char *title,unsigned percent){
+ memcpy(p,loader_art,WIDTH*HEIGHT*4);
+ text_at(p,title,40,452);
+ for(int y=482;y<500;y++)for(int x=40;x<920;x++)p[y*WIDTH+x]=0xff29160bu;
+ for(int y=485;y<497;y++)for(int x=43;x<43+874*(int)percent/100;x++)p[y*WIDTH+x]=0xff5018e7u;
+ text_at(p,"SHOTGUNKING2VITA",40,512);
+ if(game_version[0]){char v[48];snprintf(v,sizeof(v),"STEAM %s",game_version);text_at(p,v,920-12*(int)strlen(v),512);}
+}
+#endif
+static void progress_screen(uint32_t *p,const char *title,unsigned percent){
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ if(loader_art){loader_screen(p,title,percent);return;}
+#endif
  for(int i=0;i<WIDTH*HEIGHT;i++)p[i]=0xff101827u;
  for(int y=72;y<474;y++)for(int x=96;x<864;x++)p[y*WIDTH+x]=0xff182b45u;
  for(int x=96;x<864;x++){p[72*WIDTH+x]=0xff4c8dccu;p[473*WIDTH+x]=0xff4c8dccu;}
  for(int y=72;y<474;y++){p[y*WIDTH+96]=0xff4c8dccu;p[y*WIDTH+863]=0xff4c8dccu;}
- text_at(p,"SHOTGUN KING",250,150);text_at(p,"VITA EDITION",310,205);
- text_at(p,"INITIALIZING GAME",250,300);
+ text_at(p,"SHOTGUNKING2VITA",384,175);
+ text_at(p,title,250,300);
  for(int y=348;y<372;y++)for(int x=220;x<740;x++)p[y*WIDTH+x]=0xff0b1524u;
- for(int y=352;y<368;y++)for(int x=224;x<736;x++)p[y*WIDTH+x]=0xff56b4e9u;
+ for(int y=352;y<368;y++)for(int x=224;x<224+512*(int)percent/100;x++)p[y*WIDTH+x]=0xff56b4e9u;
  text_at(p,"PLEASE WAIT",370,410);
 }
+static void loading_screen(uint32_t *p){progress_screen(p,"INITIALIZING GAME",100);}
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+typedef struct {uint32_t *pixels;SgGpuStats *gpu;} InstallScreen;
+static void install_progress(unsigned percent,void *user){
+ InstallScreen *s=user;progress_screen(s->pixels,"INSTALLING GAME DATA",percent);
+ sg_gpu_present(s->pixels,WIDTH,HEIGHT,0,0,0xff000000,s->gpu);
+}
+#endif
 static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_CROSS)out|=SG_CROSS;
  if(v&SCE_CTRL_CIRCLE)out|=SG_CIRCLE;
@@ -61,11 +90,43 @@ static unsigned input(unsigned v){unsigned out=0;
  if(v&SCE_CTRL_START)out|=SG_START;
  if(v&SCE_CTRL_SELECT)out|=SG_SELECT;
  return out;}
-typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor,fps_limit;} Config;
+typedef struct {int cpu,workers,copy_mode,profile,renderer,divisor,fps_limit,lua_jit,replay,front_touch;} Config;
+/* Experimental front touch as the game's mouse: one finger only moves the
+ * cursor; holding it still for TOUCH_HOLD frames presses the left button so
+ * the finger then drags. A second finger is a left click (held while both
+ * touch). Modes: 0 deciding, 1 dragging, 2 two-finger click, 3 moving only,
+ * 4 click done (wait for release). */
+#define TOUCH_HOLD 20
+#define TOUCH_SLOP 3
+typedef struct {int frames,mode,x,y,x0,y0;} TouchMouse;
+static int touch_mouse(TouchMouse *t,const SceTouchData *touch){
+ if(!touch->reportNum){t->frames=t->mode=0;return 0;}
+ /* 1920x1088 panel -> 960x544 screen -> the 320x180 scene at 3x, 2 px down. */
+ t->x=touch->report[0].x/6;t->y=(touch->report[0].y/2-2)/3;
+ if(t->x>319)t->x=319;if(t->y<0)t->y=0;if(t->y>179)t->y=179;
+ if(!t->frames++){t->x0=t->x;t->y0=t->y;}
+ if(touch->reportNum>=2){if(t->mode!=1&&t->mode!=4)t->mode=2;}
+ else if(t->mode==2)t->mode=4;
+ else if(!t->mode){
+  if(abs(t->x-t->x0)>TOUCH_SLOP||abs(t->y-t->y0)>TOUCH_SLOP)t->mode=3;
+  else if(t->frames>=TOUCH_HOLD)t->mode=1;
+ }
+ return t->mode==1||t->mode==2;
+}
 static Config settings(void){
  /* Safe defaults for the shipped profiling build.  A stale CFG must not
   * silently disable measurements or revert the requested 500 MHz profile. */
- Config c={500,3,2,1,1,2,60};FILE *f=fopen("ux0:data/shotgunk2vita/performance.cfg","r");
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ /* data.sgr installs ship no performance.cfg: default to full resolution. */
+ Config c={500,3,2,1,1,1,60,0,0,1};
+#else
+ Config c={500,3,2,1,1,2,60,0,0,0};
+#endif
+ FILE *f=fopen(SG_DATA_ROOT "/performance.cfg","r");
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ /* The VPK ships its defaults; a performance.cfg in the data folder wins. */
+ if(!f)f=fopen("app0:performance.cfg","r");
+#endif
  if(f){char line[128],key[80];int value;while(fgets(line,sizeof(line),f))if(sscanf(line,"%79[^=]=%d",key,&value)==2){
   if(!strcmp(key,"cpu_mhz")&&(value==333||value==444))c.cpu=value;
   if(!strcmp(key,"workers")&&value>=1&&value<=3)c.workers=value;
@@ -74,7 +135,14 @@ static Config settings(void){
   if(!strcmp(key,"profile"))c.profile=value!=0;
   if(!strcmp(key,"resolution_divisor")&&(value==1||value==2))c.divisor=value;
   if(!strcmp(key,"fps_limit")&&(value==30||value==60))c.fps_limit=value;
- }fclose(f);}return c;
+  if(!strcmp(key,"lua_jit"))c.lua_jit=value!=0;
+  if(!strcmp(key,"front_touch"))c.front_touch=value!=0;
+  if(!strcmp(key,"profile_funcs"))sg_set_profile_funcs(value);
+  if(!strcmp(key,"profile_lines"))sg_set_profile_lines(value);
+  /* input_replay wins over input_record when both are set. */
+  if(!strcmp(key,"input_record")&&value&&c.replay!=2)c.replay=1;
+  if(!strcmp(key,"input_replay")&&value)c.replay=2;
+ }fclose(f);}sg_set_jit_mode(c.lua_jit);return c;
 }
 static const char *run_gpu(Config config,FILE *log){
  int scene_width=320/config.divisor,scene_height=180/config.divisor;
@@ -82,18 +150,37 @@ static const char *run_gpu(Config config,FILE *log){
  if(!pixels||!error_pixels){free(pixels);free(error_pixels);return "gpu_staging_error";}
  sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
  sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK,SCE_TOUCH_SAMPLING_STATE_START);
- mkdir("ux0:data/shotgunk2vita",0777);
+ mkdir(SG_DATA_ROOT,0777);
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d renderer=gpu\n",config.cpu,scePowerGetArmClockFrequency());fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
- if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
+ if(config.profile&&!csv)csv=fopen(SG_DATA_ROOT "/performance.csv","a");
  if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks");sg_perf_extra_header(csv);fflush(csv);}
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ loader_art=sg_steam_loader_image("app0:loader.bin",WIDTH,HEIGHT);
+ sg_steam_game_version(SG_DATA_ROOT,game_version,sizeof(game_version));
+#endif
  loading_screen(error_pixels);
  SgGpuStats gpu={0};
  if(!sg_gpu_present(error_pixels,WIDTH,HEIGHT,0,0,0xff000000,&gpu)){free(pixels);free(error_pixels);if(csv)fclose(csv);return "gpu_startup_error";}
- int running=sg_boot("ux0:data/shotgunk2vita",log);unsigned frames=0;
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ InstallScreen screen={error_pixels,&gpu};
+ sg_steam_install(SG_DATA_ROOT,log,install_progress,&screen);
+ sg_steam_game_version(SG_DATA_ROOT,game_version,sizeof(game_version));
+ if(log){fprintf(log,"loader_art=%d steam_version=%s\n",loader_art!=NULL,game_version);fflush(log);}
+ loading_screen(error_pixels);sg_gpu_present(error_pixels,WIDTH,HEIGHT,0,0,0xff000000,&gpu);
+ free(loader_art);loader_art=NULL;
+#endif
+#ifdef SG_STEAM_SGR_EXPERIMENTAL
+ /* HD text (hdtext overlay, 640x360) as its own GPU layer, not 320x180. */
+ if(config.divisor==1){sg_graphics_set_overlay_separate(1);sg_gpu_set_overlay(sg_overlay_export);}
+ if(log){fprintf(log,"hd_overlay_layer=%d\n",config.divisor==1);fflush(log);}
+#endif
+ SgReplay replay;sg_replay_start(&replay,config.replay,SG_DATA_ROOT,log);
+ int running=sg_boot(SG_DATA_ROOT,log);unsigned frames=0;
  if(log){fprintf(log,"bootstrap_result=%d error=%s\n",running,running?"none":sg_error());fflush(log);}
  int workers=sg_render_pool_start(config.workers,log);
- const char *exit_reason=NULL;
+ const char *exit_reason=NULL;TouchMouse touch_state={0,0,160,90};
+ if(log){fprintf(log,"front_touch=%d\n",config.front_touch);fflush(log);}
  uint64_t flush_time=sg_now_us(),window_time=flush_time,elapsed=0;uint64_t last_end=flush_time;unsigned window_frames=0;char metrics[100]="FPS MEASURING";
  while(1){
   uint64_t frame_start=sg_now_us();
@@ -102,14 +189,18 @@ static const char *run_gpu(Config config,FILE *log){
   if(!running&&(pad.buttons&SCE_CTRL_START)){exit_reason="error_exit_start";break;}
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
   for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
+  /* Recorded/replayed inputs are the ones the game step consumes. */
+  if(running)sg_replay_frame(&replay,&buttons,&pad.lx,&pad.ly,&pad.rx,&pad.ry,buttons,log);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
-  /* Front touch is intentionally disabled; rear touch remains L1/R1 above. */
-  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
-  if(sg_should_quit()){exit_reason="menu_exit";break;}
+  /* Front touch is the mouse when enabled; rear touch remains L1/R1 above. */
+  int mouse_buttons=config.front_touch?touch_mouse(&touch_state,&touch):0;
+  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,mouse_buttons,touch_state.x,touch_state.y);
+  if(sg_should_quit()){exit_reason=sg_restart_requested()?"menu_restart":"menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
   uint64_t present_start=sg_now_us();if(running)sg_render_pool_present(pixels,scene_width,scene_height);uint64_t present_end=sg_now_us();SgRenderStats render=sg_render_pool_stats();
   if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)error_pixels[i]=0xff201018;text(error_pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(error_pixels,sg_error(),110);}
   sg_diag_phase(SG_DIAG_DISPLAY);
+  if(replay.mode==2&&log&&frames%600==0)fprintf(log,"replay_check frame=%u entities=%llu lua_kb=%u\n",frames,(unsigned long long)sg_perf.entities,sg_lua_memory_kb());
   int display_ok=sg_gpu_present(running?pixels:error_pixels,running?scene_width:WIDTH,running?scene_height:HEIGHT,buttons,running,running?sg_present_background():0xff201018,&gpu);
   uint64_t end=sg_now_us();uint64_t copy_us=gpu.upload_us;
   if(!display_ok){if(log)fprintf(log,"gpu_display_failed\n");exit_reason="gpu_display_error";break;}
@@ -123,17 +214,18 @@ static const char *run_gpu(Config config,FILE *log){
  }
  sg_diag_phase(SG_DIAG_EXIT);sg_diag_event("shutdown",exit_reason?exit_reason:"clean");
  if(log)fprintf(log,"exit_reason=%s\n",exit_reason?exit_reason:running?"clean":"lua_error");
+ sg_replay_stop(&replay,log);sg_set_save_redirect(NULL);
  sg_render_pool_stop();sg_close();if(csv)fclose(csv);free(pixels);free(error_pixels);
  return exit_reason?exit_reason:running?"clean":"lua_error";
 }
 int main(void){
- int diagnostic_started=sg_diag_start("ux0:data/shotgunk2vita");
+ int diagnostic_started=sg_diag_start(SG_DATA_ROOT);
  if(sg_diag_directory()[0]){char console[1400];snprintf(console,sizeof(console),"%s/console.log",sg_diag_directory());
   if(freopen(console,"a",stdout))setvbuf(stdout,NULL,_IOLBF,4096);
   if(freopen(console,"a",stderr))setvbuf(stderr,NULL,_IONBF,0);
  }
  FILE *log=sg_diag_open("runtime.log");
- if(!log)log=fopen("ux0:data/shotgunk2vita/runtime.log","a");
+ if(!log)log=fopen(SG_DATA_ROOT "/runtime.log","a");
  Config config=settings();
  if(log){setvbuf(log,NULL,_IOLBF,4096);fprintf(log,"build=performance-%s name=%s fps_limit=%d hud=removed diagnostics_started=%d session=%s\n",SG_BUILD_VERSION,SG_BUILD_NAME,config.fps_limit,diagnostic_started,sg_diag_directory());}
  int old_clock=scePowerGetArmClockFrequency();int clock_rc=scePowerSetArmClockFrequency(config.cpu);
@@ -144,6 +236,7 @@ int main(void){
  if(config.renderer&&sg_gpu_init(log,config.divisor)){
   const char *reason=run_gpu(config,log);sg_gpu_close();if(log)fclose(log);fflush(stdout);fflush(stderr);sg_diag_stop(reason);
   if(old_clock>0)scePowerSetArmClockFrequency(old_clock);
+  if(!strcmp(reason,"menu_restart"))sceAppMgrLoadExec("app0:eboot.bin",NULL,NULL);
   sceKernelExitProcess(0);return 0;
  }
  SceUID block=sceKernelAllocMemBlock("SGK double framebuffer",SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,0x400000,NULL);
@@ -161,18 +254,19 @@ int main(void){
  if(log)fprintf(log,"presentation=cached_staging double_buffers=2 resolution=960x544 game_resolution=320x180\n");
  sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
  sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,SCE_TOUCH_SAMPLING_STATE_START);sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK,SCE_TOUCH_SAMPLING_STATE_START);
- mkdir("ux0:data/shotgunk2vita",0777);
+ mkdir(SG_DATA_ROOT,0777);
  if(log){fprintf(log,"cpu_requested=%d cpu_actual=%d clock_rc=%d affinity_rc=%d framebuffer_rc=%d\n",config.cpu,scePowerGetArmClockFrequency(),clock_rc,affinity_rc,framebuffer_rc);fflush(log);}
  FILE *csv=config.profile?sg_diag_open("performance.csv"):NULL;
- if(config.profile&&!csv)csv=fopen("ux0:data/shotgunk2vita/performance.csv","a");
+ if(config.profile&&!csv)csv=fopen(SG_DATA_ROOT "/performance.csv","a");
  if(csv){setvbuf(csv,NULL,_IOFBF,16384);fprintf(csv,"frame,update_ms,draw_ms,present_ms,wait_ms,frame_ms,glyph_hits,glyph_misses,font_build_ms,blit_pixels,workers,cpu_mhz,render0_ms,render1_ms,render2_ms,copy_ms,running,copy_mode,copy_rc,input_calls,input_evaluations,input_parses,renderer,gpu_submit_ms,entities,entity_updates,entity_draws,palette_resets,palette_suppressed,sprite_calls,shadow_calls,shadow_pixels,shadow_fallbacks");sg_perf_extra_header(csv);fflush(csv);}
  loading_screen(pixels);
  memcpy(display_buffers[0],pixels,WIDTH*HEIGHT*4);
  sceDisplaySetFrameBuf(&frame,SCE_DISPLAY_SETBUF_NEXTFRAME);sceDisplayWaitVblankStart();
- int running=sg_boot("ux0:data/shotgunk2vita",log);unsigned frames=0;
+ int running=sg_boot(SG_DATA_ROOT,log);unsigned frames=0;
  if(log){fprintf(log,"bootstrap_result=%d error=%s\n",running,running?"none":sg_error());fflush(log);}
  int workers=sg_render_pool_start(config.workers,log);
- const char *exit_reason=NULL;
+ const char *exit_reason=NULL;TouchMouse touch_state={0,0,160,90};
+ if(log){fprintf(log,"front_touch=%d\n",config.front_touch);fflush(log);}
  uint64_t flush_time=sg_now_us(),window_time=flush_time,elapsed=0;uint64_t last_end=flush_time;unsigned window_frames=0;char metrics[100]="FPS MEASURING";
  while(1){
   sg_diag_phase(SG_DIAG_INPUT);
@@ -181,9 +275,10 @@ int main(void){
   int toggle;unsigned buttons=sg_controls(input(pad.buttons),&toggle);(void)toggle;
   for(unsigned i=0;i<back_touch.reportNum;i++)buttons|=sg_touch_back_shoulder(back_touch.report[i].x,back_touch.report[i].y);
   sg_diag_frame(frames,buttons,pad.lx,pad.ly,pad.rx,pad.ry);
-  /* Front touch is intentionally disabled; rear touch remains L1/R1 above. */
-  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,0,160,90);
-  if(sg_should_quit()){exit_reason="menu_exit";break;}
+  /* Front touch is the mouse when enabled; rear touch remains L1/R1 above. */
+  int mouse_buttons=config.front_touch?touch_mouse(&touch_state,&touch):0;
+  if(running)running=sg_step(buttons,pad.lx,pad.ly,pad.rx,pad.ry,mouse_buttons,touch_state.x,touch_state.y);
+  if(sg_should_quit()){exit_reason=sg_restart_requested()?"menu_restart":"menu_exit";break;}
   sg_diag_phase(SG_DIAG_PRESENT);
   uint64_t present_start=sg_now_us();if(running)sg_render_pool_present(pixels,WIDTH,HEIGHT);uint64_t present_end=sg_now_us();SgRenderStats render=sg_render_pool_stats();
   if(!running){sg_diag_phase(SG_DIAG_ERROR);for(int i=0;i<WIDTH*HEIGHT;i++)pixels[i]=0xff201018;text(pixels,"SHOTGUNK VITA STOPPED\nLOGS IN DATA SHOTGUNK2VITA LOGS\nSTART TO EXIT",28);text(pixels,sg_error(),110);}
@@ -208,5 +303,6 @@ int main(void){
  if(log)fprintf(log,"exit_reason=%s\n",exit_reason?exit_reason:running?"clean":"lua_error");
  sg_render_pool_stop();sg_close();if(csv)fclose(csv);if(log)fclose(log);fflush(stdout);fflush(stderr);sg_diag_stop(exit_reason?exit_reason:running?"clean":"lua_error");sceDisplaySetFrameBuf(NULL,SCE_DISPLAY_SETBUF_NEXTFRAME);sceDisplayWaitVblankStart();free(pixels);sceKernelFreeMemBlock(block);
  if(old_clock>0){scePowerSetArmClockFrequency(old_clock);}
+ if(exit_reason&&!strcmp(exit_reason,"menu_restart"))sceAppMgrLoadExec("app0:eboot.bin",NULL,NULL);
  sceKernelExitProcess(0);return 0;
 }
