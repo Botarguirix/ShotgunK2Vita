@@ -3,8 +3,12 @@
 #include "perf.h"
 #include <vita2d.h>
 #include <string.h>
-static vita2d_texture *scene,*error_image;
+static vita2d_texture *scene,*error_image,*overlay;
 static int initialized;
+static SgOverlayFill overlay_fill;
+#define OVERLAY_W 640
+#define OVERLAY_H 360
+void sg_gpu_set_overlay(SgOverlayFill fill){overlay_fill=fill;}
 static int scene_width=320,scene_height=180;
 int sg_gpu_init(FILE *log,int divisor){
  int rc=vita2d_init_advanced(256*1024);
@@ -35,9 +39,18 @@ int sg_gpu_present(const uint32_t *pixels,int width,int height,unsigned buttons,
  start=sg_now_us();int stride=vita2d_texture_get_stride(t);
  unsigned char *dst=vita2d_texture_get_datap(t);
  for(int y=0;y<height;y++)memcpy(dst+y*stride,pixels+y*width,width*4);
+ /* The HD text overlay goes straight into its own texture (rows contiguous:
+  * 640 is already the texture's aligned width) and is scaled 1.5x with
+  * linear filtering, so text keeps all its pixels. */
+ int ow=0,oh=0,has_overlay=0;
+ if(t==scene&&overlay_fill){
+  if(!overlay){overlay=vita2d_create_empty_texture(OVERLAY_W,OVERLAY_H);if(overlay)vita2d_texture_set_filters(overlay,SCE_GXM_TEXTURE_FILTER_LINEAR,SCE_GXM_TEXTURE_FILTER_LINEAR);}
+  if(overlay&&vita2d_texture_get_stride(overlay)==OVERLAY_W*4)has_overlay=overlay_fill(vita2d_texture_get_datap(overlay),OVERLAY_W,OVERLAY_H,&ow,&oh)&&ow>0&&oh>0;
+ }
  stats->upload_us=sg_now_us()-start;start=sg_now_us();
  vita2d_start_drawing();vita2d_set_clear_color(background);vita2d_clear_screen();
  vita2d_draw_texture_scale(t,0,t==scene?2:0,t==scene?960.0f/width:1,t==scene?540.0f/height:1);
+ if(has_overlay)vita2d_draw_texture_part_scale(overlay,0,2,0,0,ow,oh,960.0f/ow,540.0f/oh);
  (void)controls;(void)buttons;
  vita2d_end_drawing();vita2d_swap_buffers();stats->submit_us=sg_now_us()-start;
  return 1;
@@ -47,5 +60,6 @@ void sg_gpu_close(void){
  vita2d_wait_rendering_done();sceGxmDisplayQueueFinish();
  if(scene)vita2d_free_texture(scene);
  if(error_image)vita2d_free_texture(error_image);
- scene=error_image=NULL;vita2d_fini();initialized=0;
+ if(overlay)vita2d_free_texture(overlay);
+ scene=error_image=overlay=NULL;vita2d_fini();initialized=0;
 }

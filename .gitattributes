@@ -2,3 +2,6 @@
 *.sh text eol=lf
 *.c text eol=lf
 *.h text eol=lf
+
+# Preserve upstream miniz formatting.
+third_party/miniz/* -whitespace

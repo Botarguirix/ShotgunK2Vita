@@ -1,45 +1,31 @@
-# Compilación / Building
+# CompilaciÃ³n / Building â€” 0.78 alpha
 
-## Español
+## EspaÃ±ol
 
-Requiere Linux/WSL, VitaSDK, CMake, make y compilador C. Las dependencias incluidas conservan sus licencias en [third_party](../third_party/README.md). Compilación predeterminada con Lua 5.1:
+Linux/WSL: VitaSDK, CMake, make, Python 3 y dependencias incluidas. Steam requiere LuaJIT. Dependencias externas: hyln9/vita-luajit commit 0f0252ab8615bc4b097da0bfe0bf10d0666a3dcd y hyln9/vita-libdl commit bf46551882c344e5aebee07f15267e2ca93d78a5. Clona con finales de lÃ­nea LF, conserva sus licencias y compila segÃºn upstream. LuaJIT exige gcc-multilib/libc6-dev-i386 para sus generadores host de 32 bits. Con SDK actuales, elimina las declaraciones RWLock antiguas de libdl/source/dl.c: las aporta el header del SDK.
 
 ```sh
 export VITASDK=/ruta/vitasdk
-bash scripts/build.sh
+export PATH="$VITASDK/bin:$PATH"
+python3 tools/generate_neutral_livearea.py
+# Default paths: _local/vita-luajit-source-20261017 and _local/vita-libdl
+SG_BUILD_DIR="$PWD/build-iterations/00.78-steam-alpha" bash scripts/build.sh -DSG_LUAJIT_EXPERIMENTAL=ON -DSG_STEAM_SGR_EXPERIMENTAL=ON -DVITA_LIVEAREA_DIR="$PWD/private/livearea"
+SG_BUILD_DIR="$PWD/build-iterations/00.78-legacy-alpha" bash scripts/build.sh -DSG_LUAJIT_EXPERIMENTAL=ON -DSG_STEAM_SGR_EXPERIMENTAL=OFF -DVITA_LIVEAREA_DIR="$PWD/private/livearea"
+python tools/package_test.py --vpk-only
 ```
 
-Salida: `build-iterations/00.78/ShotgunK2Vita-performance.vpk`. Sin `private/livearea/` se omite el arte privado. Esta compilación predeterminada **no reproduce** el VPK LuaJIT existente.
+SG_VITA_LUAJIT_ROOT y SG_VITA_LIBDL_ROOT permiten otras rutas. Si el workspace contiene espacios, crea un enlace sin espacios y exporta SG_SOURCE_DIR con ese enlace; configura un build nuevo. Los VPK pÃºblicos usan imÃ¡genes neutrales propias generadas por tools/generate_neutral_livearea.py, no arte del juego; define VITA_LIVEAREA_DIR con esa carpeta o deja el arte sin generar. Los scripts make_livearea/prepare_livearea procesan archivos externos del usuario y escriben en private/, nunca se adjunta su salida comercial a un release.
 
-La entrega 00.78 se compiló con `SG_LUAJIT_EXPERIMENTAL=ON`. Necesita [hyln9/vita-luajit](https://github.com/hyln9/vita-luajit), referencia `0f0252ab8615bc4b097da0bfe0bf10d0666a3dcd`, en `_local/vita-luajit-source-20261017/`, y [hyln9/vita-libdl](https://github.com/hyln9/vita-libdl), `bf46551882c344e5aebee07f15267e2ca93d78a5`, en `_local/vita-libdl/`, compilados según upstream. También enlaza `taihen_stub`. No se garantiza reproducción binaria: los cambios locales de estas dependencias no se han auditado en esta publicación.
+CMake genera build.../generated/code_patches.h. Sin datos privados contiene cero parches y el build funciona. Opcionalmente define SG_PATCH_ORIGINAL, SG_PATCH_OPTIMIZED y SG_PATCH_TARGET: tools/gen_code_patches.py valida los reemplazos a partir de tus tres archivos. No subas esos inputs, el header generado ni un VPK que los incorpore; los VPK pÃºblicos se construyen con las tres opciones vacÃ­as. El historial privado que contenÃ­a el header no forma parte de esta rama.
 
-```sh
-cmake -S . -B build-iterations/00.78 -DSG_LUAJIT_EXPERIMENTAL=ON -DCMAKE_BUILD_TYPE=Release
-bash scripts/build.sh
-```
-
-Regresión PC con datos privados: `bash scripts/check_iteration.sh`; logs en `reports/`. Para empaquetar una **nueva entrega inexistente**: `python tools/package_test.py --vpk-only`. Se rechaza reutilizar `artifacts/iterations/00.78/`. No incrementar versión por documentación sola.
+Pruebas: bash scripts/check_iteration.sh requiere datos 1.5 privados en private/game/. Las pruebas de instalaciÃ³n Steam reciben una copia local de data.sgr; los resultados PC no equivalen a hardware. Ver STATUS_ITERATION78.
 
 ## English
 
-Requires Linux/WSL, VitaSDK, CMake, make and a C compiler. Included dependencies retain their licenses under [third_party](../third_party/README.md). Default Lua 5.1 build:
+Use Linux/WSL, VitaSDK, CMake, make and Python 3. Steam requires LuaJIT. External dependencies: hyln9/vita-luajit at 0f0252ab8615bc4b097da0bfe0bf10d0666a3dcd and hyln9/vita-libdl at bf46551882c344e5aebee07f15267e2ca93d78a5. Keep LF source files and upstream licenses. LuaJIT's host generators require gcc-multilib/libc6-dev-i386. Current SDK headers replace the two obsolete RWLock forward declarations in libdl/source/dl.c.
 
-```sh
-export VITASDK=/path/to/vitasdk
-bash scripts/build.sh
-```
+Use the commands above for separate Steam/1.5 builds. SG_VITA_LUAJIT_ROOT and SG_VITA_LIBDL_ROOT override dependency locations. For paths with spaces, create a space-free symlink, export SG_SOURCE_DIR pointing to it, and configure a fresh build. Public VPKs use original neutral artwork from tools/generate_neutral_livearea.py; set VITA_LIVEAREA_DIR accordingly. Commercial output from optional artwork preparation scripts stays private.
 
-Output: `build-iterations/00.78/ShotgunK2Vita-performance.vpk`. Private artwork is omitted when `private/livearea/` is absent. This default build **does not reproduce** the existing LuaJIT VPK.
+CMake generates code_patches.h only in the ignored build tree. No private inputs means zero patches and a valid build. Optional SG_PATCH_ORIGINAL/OPTIMIZED/TARGET inputs generate local-only patches; never publish the inputs, generated header or a VPK containing them. Public builds leave all three inputs empty. The private history containing the header is excluded from this branch.
 
-Delivery 00.78 was built with `SG_LUAJIT_EXPERIMENTAL=ON`. It needs [hyln9/vita-luajit](https://github.com/hyln9/vita-luajit), reference `0f0252ab8615bc4b097da0bfe0bf10d0666a3dcd`, under `_local/vita-luajit-source-20261017/`, and [hyln9/vita-libdl](https://github.com/hyln9/vita-libdl), `bf46551882c344e5aebee07f15267e2ca93d78a5`, under `_local/vita-libdl/`, built following upstream instructions. It also links `taihen_stub`. Binary reproducibility is not guaranteed: local dependency changes have not been audited for this publication.
-
-```sh
-cmake -S . -B build-iterations/00.78 -DSG_LUAJIT_EXPERIMENTAL=ON -DCMAKE_BUILD_TYPE=Release
-bash scripts/build.sh
-```
-
-PC regression with private assets: `bash scripts/check_iteration.sh`; logs under `reports/`. To package a **new delivery that does not exist yet**: `python tools/package_test.py --vpk-only`. Reusing `artifacts/iterations/00.78/` is rejected. Do not increase versions for documentation alone.
-
-ES: El árbol de código actual conserva ajustes posteriores al empaquetado en `src/gpu_presenter.c` (espera de renderizado) y `src/graphics.c` (blit y mezcla). Esos ajustes no están incluidos en el VPK 00.78 existente y requiere una futura entrega compilada y validada. Los símbolos de la release corresponden al VPK preservado, no a una recompilación del árbol actual.
-
-EN: The current source tree retains post-packaging changes in `src/gpu_presenter.c` (rendering wait) and `src/graphics.c` (blit and blending). Those changes are not included in the existing 00.78 VPK and requires a future built and validated delivery. Release symbols match the preserved VPK, not a rebuild of the current tree.
+bash scripts/check_iteration.sh requires private 1.5 data in private/game/. Steam installation probes use a private copy of data.sgr. PC tests are not console acceptance; see STATUS_ITERATION78.

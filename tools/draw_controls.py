@@ -1,68 +1,67 @@
-"""Draw an exact, code-derived Vita control diagram (no game artwork)."""
+"""Original bilingual Vita diagrams; system fonts only, no game assets."""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-root = Path(__file__).resolve().parents[1]
-out = root/'docs/images'
-out.mkdir(parents=True, exist_ok=True)
-im = Image.new('RGB',(1600,1200),(14,18,33))
-d = ImageDraw.Draw(im)
-font_root = Path('C:/Windows/Fonts')
-def font(size, bold=False):
-    return ImageFont.truetype(str(font_root/('segoeuib.ttf' if bold else 'segoeui.ttf')),size)
-peach=(255,208,173); pink=(255,103,145); muted=(169,173,194)
-d.text((60,38),'ShotgunK2Vita · Controles PS Vita',font=font(46,True),fill=peach)
-d.text((62,103),'Mapa adaptado a Vita OLED · versión 00.38 · sólo L1/R1 usan touch trasero',font=font(24),fill=muted)
+# Hardware layout reference only; no image is copied:
+# https://manuals.playstation.net/document/en/psvita/basic/partnames.html
+ROOT=Path(__file__).resolve().parents[1]
+OUT=ROOT/'docs/images'
+BG='#101827'; PANEL='#1d2a40'; INK='#edf2fa'; MUTED='#bccbdf'; ACCENT='#67d5e7'
 
-# Front view of an OLED Vita: these are schematic shapes, not a device photo.
-d.rounded_rectangle((360,280,1240,730),radius=110,fill=(10,12,18),outline=(91,94,118),width=5)
-d.rounded_rectangle((523,323,1077,660),radius=15,fill=(26,31,49),outline=(100,100,120),width=3)
-for y in range(8):
-    for x in range(8):
-        d.rectangle((680+x*29,374+y*29,708+x*29,402+y*29),fill=(104,99,133) if (x+y)%2 else (215,172,143))
-d.text((800,478),'SGK',font=font(36,True),fill=(14,18,33),anchor='mm')
-d.text((800,695),'PS VITA',font=font(20,True),fill=(130,135,157),anchor='mm')
-for x,y in ((445,592),(1154,592)):
-    d.ellipse((x-36,y-36,x+36,y+36),fill=(25,27,37),outline=(116,117,137),width=3)
-    d.ellipse((x-22,y-22,x+22,y+22),fill=(40,43,57))
-d.rounded_rectangle((427,385,463,479),radius=5,fill=(44,47,64),outline=(124,127,148),width=2)
-d.rounded_rectangle((399,413,491,451),radius=5,fill=(44,47,64),outline=(124,127,148),width=2)
-for x,y,symbol in ((1154,382,'▲'),(1204,432,'○'),(1154,482,'×'),(1104,432,'□')):
-    d.ellipse((x-22,y-22,x+22,y+22),fill=(40,43,57),outline=(121,122,146),width=2)
-    d.text((x,y-2),symbol,font=font(32),fill=pink,anchor='mm')
-for x,label in ((459,'SELECT'),(1144,'START')):
-    d.rounded_rectangle((x-30,669,x+30,684),radius=6,fill=(65,67,82))
-    d.text((x,706),label,font=font(13,True),fill=muted,anchor='mm')
-for x,label in ((433,'L'),(1166,'R')):
-    d.rounded_rectangle((x-59,250,x+59,277),radius=10,fill=(77,78,96),outline=muted,width=2)
-    d.text((x,262),label,font=font(18,True),fill=peach,anchor='mm')
+def font(n,bold=False):
+    candidates=[Path('C:/Windows/Fonts')/('segoeuib.ttf' if bold else 'segoeui.ttf'),Path('/usr/share/fonts/truetype/dejavu')/('DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf')]
+    for p in candidates:
+        if p.is_file():return ImageFont.truetype(str(p),n)
+    return ImageFont.load_default(size=n)
 
-def card(box,title,lines,target):
-    x,y,w,h=box
-    d.rounded_rectangle((x,y,x+w,y+h),radius=16,fill=(32,37,59),outline=(66,70,94),width=2)
-    d.text((x+18,y+13),title,font=font(23,True),fill=peach)
-    for i,line in enumerate(lines):d.text((x+18,y+49+i*29),line,font=font(20),fill=muted)
-    if target:
-        start=(x+w,y+h//2) if x<800 else (x,y+h//2)
-        elbow=(start[0]+25 if x<800 else start[0]-25,start[1])
-        d.line((start,elbow,target),fill=pink,width=3);d.ellipse((target[0]-4,target[1]-4,target[0]+4,target[1]+4),fill=pink)
-card((35,184,280,123),'L',['Mantener: movimiento','arriesgado'],(405,263))
-card((1285,184,280,123),'R',['Disparar','(R2 del esquema PS)'],(1190,263))
-card((35,352,280,157),'Cruceta / stick izq.',['Navegar y seleccionar','destino de movimiento'],(435,435))
-card((1285,350,280,207),'Botones',['×  Confirmar / mover','○  Cancelar','□  Acción especial','Triángulo: recargar'],(1185,432))
-card((35,557,280,170),'SELECT / START',['SELECT: información','START: pausa'],(459,675))
-card((1285,592,280,123),'Stick derecho',['Apuntar','con la escopeta'],(1154,592))
+def draw(lang):
+    es=lang=='es'
+    im=Image.new('RGB',(1600,1420),BG);d=ImageDraw.Draw(im)
+    d.text((60,35),'ShotgunKing2Vita',font=font(46,True),fill=INK)
+    d.text((60,96),'0.78 alpha | '+('Controles y gestos touch' if es else 'Controls and touch gestures'),font=font(28),fill=ACCENT)
+    d.text((60,145),'Esquema propio. Steam: touch frontal activo por defecto.' if es else 'Original schematic. Steam: front touch enabled by default.',font=font(23),fill=MUTED)
+    # All geometry is drawn here; no device photos or game screen.
+    d.rounded_rectangle((345,300,1255,750),100,fill='#080e18',outline='#7c91b0',width=4)
+    d.rounded_rectangle((515,345,1085,670),18,fill=PANEL,outline='#5d7290',width=3)
+    d.text((800,480),'TOUCH',font=font(42,True),anchor='mm',fill=ACCENT)
+    d.text((800,535),'1 dedo / 2 dedos' if es else '1 finger / 2 fingers',font=font(24),anchor='mm',fill=MUTED)
+    for x in [445,1155]:
+        d.ellipse((x-34,574,x+34,642),fill=PANEL,outline=MUTED,width=3)
+    d.rectangle((428,383,462,477),fill=MUTED);d.rectangle((398,413,492,447),fill=MUTED)
+    for x,y,label in [(1155,390,'TRI'),(1200,435,'O'),(1155,480,'X'),(1110,435,'SQ')]:
+        d.ellipse((x-22,y-22,x+22,y+22),outline=MUTED,width=2)
+        if label=='TRI':d.polygon([(x,y-12),(x-12,y+10),(x+12,y+10)],outline=INK,width=2)
+        elif label=='SQ':d.rectangle((x-10,y-10,x+10,y+10),outline=INK,width=2)
+        else:d.text((x,y),label,font=font(24,True),anchor='mm',fill=INK)
+    for x,label in [(435,'L'),(1165,'R')]:
+        d.rounded_rectangle((x-58,268,x+58,300),10,fill=PANEL,outline=ACCENT,width=2);d.text((x,284),label,font=font(22,True),anchor='mm',fill=INK)
+    for x,label in [(1140,'SELECT'),(1210,'START')]:
+        d.rounded_rectangle((x-25,683,x+25,703),6,fill=PANEL,outline=MUTED);d.text((x,720),label,font=font(14),anchor='mm',fill=MUTED)
+    d.ellipse((427,682,463,718),outline=MUTED,width=2)
+    d.text((445,700),'PS',font=font(13),anchor='mm',fill=MUTED)
+    def box(x,y,w,h,title,body,target=None):
+        d.rounded_rectangle((x,y,x+w,y+h),16,fill=PANEL)
+        d.text((x+17,y+13),title,font=font(24,True),fill=ACCENT)
+        d.multiline_text((x+17,y+50),body,font=font(22),fill=INK,spacing=6)
+        if target:
+            a=(x+w,y+h//2) if x<800 else (x,y+h//2)
+            d.line([a,target],fill=ACCENT,width=2)
+    box(45,240,270,125,'L / L2','Acción L2 del juego' if es else 'Game L2 action',(420,284))
+    box(1285,240,270,125,'R / R2','Disparar' if es else 'Shoot',(1180,284))
+    box(45,395,270,150,'Cruceta / stick izq.' if es else 'D-pad / left stick','Navegar / mover\nX confirma destino' if es else 'Navigate / move\nX confirms destination',(445,435))
+    box(1285,395,270,205,'Botones' if es else 'Buttons','X: confirmar\nO: atrás\nTriángulo: recargar\nCuadrado: especial' if es else 'X: confirm\nO: back\nTriangle: reload\nSquare: special',(1200,435))
+    box(45,580,270,155,'SELECT / START','Información / pausa' if es else 'Information / pause')
+    box(1285,610,270,125,'Stick derecho' if es else 'Right stick','Apuntar' if es else 'Aim',(1155,608))
+    d.text((60,795),'Gestos en la pantalla frontal' if es else 'Front touchscreen gestures',font=font(31,True),fill=INK)
+    box(60,850,470,170,'1. Mover cursor' if es else '1. Move cursor','Un dedo en movimiento.\nNo pulsa el botón del ratón.' if es else 'Move one finger.\nDoes not press a mouse button.')
+    box(565,850,470,170,'2. Arrastrar' if es else '2. Drag','Mantén quieto ~0.33 s*\ny después mueve el dedo.' if es else 'Hold still for ~0.33 s*\nthen move your finger.')
+    box(1070,850,470,170,'3. Clic izquierdo' if es else '3. Left click','Dos dedos sobre la pantalla.\nSuelta para finalizar el clic.' if es else 'Place two fingers on screen.\nRelease to end the click.')
+    d.text((60,1045),'*20 fotogramas: ~0.33 s a 60 FPS; depende de la tasa real.' if es else '*20 frames: ~0.33 s at 60 FPS; actual duration depends on frame rate.',font=font(22),fill=MUTED)
+    d.text((60,1080),'Sin gesto de clic derecho. Tras un arrastre, levanta todos los dedos.' if es else 'No right-click gesture. Lift all fingers after a drag.',font=font(22),fill=MUTED)
+    box(60,1140,730,150,'Panel trasero: L1 / R1' if es else 'Rear touch: L1 / R1','Zona superior izq.: página anterior (L1).\nZona superior der.: página siguiente (R1).' if es else 'Upper left zone: previous page (L1).\nUpper right zone: next page (R1).')
+    box(825,1140,715,150,'Configuración' if es else 'Configuration','front_touch=1 activa el ratón táctil.\nApp 1.5: desactivado por defecto.' if es else 'front_touch=1 enables touch mouse.\nApp 1.5: disabled by default.')
+    d.text((60,1335),'L/R físicos = L2/R2. El panel trasero no sustituye el disparo R2.' if es else 'Physical L/R = L2/R2. Rear touch does not replace the R2 shooting button.',font=font(24),fill=ACCENT)
+    OUT.mkdir(parents=True,exist_ok=True);im.save(OUT/f'controls_{lang}.png')
 
-d.text((60,793),'Zonas táctiles traseras y salida',font=font(28,True),fill=peach)
-items=[('L1 trasero','Zona central izquierda · 520–819'),('R1 trasero','Zona central derecha · 1100–1399'),('Códice / páginas','L1: anterior · R1: siguiente'),('Salir del juego','Menú → Exit'),('Si aparece un error','START: salir y conservar logs')]
-for i,(keys,label) in enumerate(items):
-    col=i%2;row=i//2;x=60+col*755;y=849+row*84
-    d.rounded_rectangle((x,y,x+725,y+68),radius=13,fill=(32,37,59))
-    d.text((x+16,y+10),keys,font=font(20,True),fill=pink)
-    d.text((x+295,y+14),label,font=font(19),fill=peach)
-for x,label in ((531,'L1'),(1008,'R1')):
-    d.rectangle((x,618,x+59,650),fill=(56,40,32),outline=pink,width=2)
-    d.text((x+30,635),label,font=font(20,True),fill=peach,anchor='mm')
-d.text((60,1138),'Cruceta/stick seleccionan; × confirma movimiento. Touch frontal ignorado; deadzone 40.',font=font(21),fill=muted)
-im.save(out/'controls-vita.png')
-print(out/'controls-vita.png')
+if __name__=='__main__':
+    for lang in ['es','en']:draw(lang)

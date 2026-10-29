@@ -1,4 +1,4 @@
-"""Offline performance reports and A/B configuration for ShotgunK2Vita."""
+"""Offline performance reports and A/B configuration for ShotgunKing2Vita."""
 import argparse
 import csv
 import html
@@ -104,9 +104,9 @@ def report(args):
     # At most 800 bins; retain peaks as well as means so stalls remain visible.
     stride = max(1, math.ceil(len(rows)/800))
     chart = [[int(rows[i]['frame']), *[statistics.mean(r[k] for r in rows[i:i+stride]) for k in STAGES], max(r['frame_ms'] for r in rows[i:i+stride])] for i in range(0,len(rows),stride)]
-    document = '''<!doctype html><html lang="es"><meta charset="utf-8"><title>ShotgunK2Vita · Rendimiento</title>
+    document = '''<!doctype html><html lang="es"><meta charset="utf-8"><title>ShotgunKing2Vita · Rendimiento</title>
 <style>body{background:#0e1221;color:#ffd0ad;font:16px system-ui;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:32px}section{background:#22263d;border-radius:16px;padding:22px;margin:20px 0}table{border-collapse:collapse;width:100%}td{padding:8px;border-bottom:1px solid #4a4560}.big{font-size:28px}canvas{width:100%;height:340px}label{margin-right:18px}small{color:#bcb0ca}</style>
-<h1>ShotgunK2Vita · Rendimiento</h1><p>FILE_NAME</p>
+<h1>ShotgunKing2Vita · Rendimiento</h1><p>FILE_NAME</p>
 <section><p class="big">FPS_VALUE FPS · MEAN_VALUE ms por fotograma</p><p>P95: P95_VALUE ms · SAMPLES_VALUE muestras</p>COMPARE_VALUE</section>
 <section><h2>Tiempo medio por etapa</h2><table>TABLE_VALUE</table><p>NOTE_VALUE</p><p>La espera incluye sincronización con la pantalla; incluye cola GPU en renderer=1. El tiempo total también incluye entrada, registros y otras tareas.</p></section>
 <section><h2>Evolución de tiempos</h2><p id="checks"></p><canvas id="plot" width="1000" height="340"></canvas><small>Medias por intervalo y pico de tiempo total. Líneas discontinuas: 33,33 ms (30 FPS) y 16,67 ms (60 FPS).</small></section>

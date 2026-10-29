@@ -146,3 +146,13 @@ _local/
 /docs/STEAM_ANALYSIS.md
 /docs/images/controls-vita-00.38.svg
 /docs/images/controls-vita.png
+
+# Private generated code and game data
+/src/code_patches.h
+**/code_patches.h
+/build*/
+*.sgr
+*.sgimg
+*.bnk
+*.sav
+*.psp2dmp

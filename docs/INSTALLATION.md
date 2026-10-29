@@ -1,49 +1,21 @@
-# Instalación y controles / Installation and controls
+# Instalación / Installation — 0.78 alpha
 
 ## Español
 
-Requiere PS Vita con homebrew y VitaShell, el VPK 00.78 y datos preparados desde un APK compatible de tu propia copia. No se ha establecido una matriz completa de firmware y plugins para esta entrega.
+Steam: instala ShotgunKing2Vita-steam.vpk (SGKV00002) y copia únicamente tu data.sgr de The Final Checkmate 1.623b a ux0:data/shotgunk2vita_steam/. La app prepara los datos al primer arranque. Deja espacio libre para el archivo y su extracción. No apagues durante la preparación; si falla, conserva el original y los diagnósticos para revisar la causa.
 
-1. Descarga el VPK de [Releases](https://github.com/Botarguirix/ShotgunK2Vita/releases).
-2. Para la primera instalación, sigue [DATA_TOOLS](DATA_TOOLS.md) y copia el **contenido** de `private/game/` a `ux0:data/shotgunk2vita/`.
-3. Comprueba que exista `ux0:data/shotgunk2vita/code.lua`, las subcarpetas `assets/` y los `.sgimg` generados. Copiar sólo `data.sgr` no funciona.
-4. Instala el VPK con VitaShell. Para actualizar conserva datos, configuración y `save/`; no copies un `save/` vacío encima del existente.
-5. La configuración de rendimiento de la release es opcional. Respalda tu `performance.cfg` antes de sustituirlo. Un límite de 60 FPS no garantiza alcanzar 60 FPS.
+1.5: instala ShotgunKing2Vita-performance.vpk (SGKV00001), prepara tu APK compatible con tools/prepare_data.py y copia el contenido preparado a ux0:data/shotgunk2vita/. data.sgr no sirve para esta app. Nunca mezcles ambas carpetas.
 
-| Control | Acción |
-|---|---|
-| Cruceta / stick izquierdo | Seleccionar destino |
-| × | Confirmar movimiento / selección |
-| Stick derecho | Apuntar |
-| R / L | Disparar / acción arriesgada |
-| □ / △ / ○ | Especial / recargar / cancelar |
-| START / SELECT | Pausa / información |
-| Panel trasero, zona superior izquierda / derecha | L1 / R1, cambiar páginas |
+Actualiza solo el VPK conservando datos y save/. Respalda partidas, mods y performance.cfg. Steam incluye defaults en app0:performance.cfg; un performance.cfg en su carpeta de datos tiene prioridad. front_touch=1 habilita el ratón táctil; lua_jit=0 mantiene el intérprete LuaJIT; profile_funcs/profile_lines habilitan perfiles detallados; input_record/input_replay controlan grabación/replay, con prioridad de replay. Cada app usa su propia carpeta replay/.
 
-El táctil frontal está desactivado. Sal desde el menú; si aparece la pantalla de error del runtime, START permite salir. Los diagnósticos quedan en `ux0:data/shotgunk2vita/logs/`; compártelos de forma privada si contienen información personal.
-
-Recorrido de verificación: abrir menú, iniciar partida, mover y confirmar con ×, apuntar/disparar/recargar, probar páginas traseras, pausar, perder y reintentar, salir y volver a abrir para comprobar los saves. La aceptación en consola de 00.78 sigue pendiente.
+Prueba en consola: primer arranque desde SGR, menú, Throne, mover/confirmar, apuntar/disparar/recargar, gestos touch, páginas traseras, pausa, perder/reintentar y guardar/reabrir. Prueba primero sin mods y añade uno cada vez. Hardware pendiente.
 
 ## English
 
-Requires a homebrew-enabled PS Vita with VitaShell, the 00.78 VPK and data prepared from a compatible APK of your own game copy. A complete firmware and plugin compatibility matrix has not been established for this delivery.
+Steam: install ShotgunKing2Vita-steam.vpk (SGKV00002) and copy only your The Final Checkmate 1.623b data.sgr into ux0:data/shotgunk2vita_steam/. First boot prepares resources. Keep enough space for the archive and extracted files. Do not interrupt preparation; retain the original and diagnostics if it fails.
 
-1. Download the VPK from [Releases](https://github.com/Botarguirix/ShotgunK2Vita/releases).
-2. For a first installation, follow [DATA_TOOLS](DATA_TOOLS.md#english) and copy the **contents** of `private/game/` to `ux0:data/shotgunk2vita/`.
-3. Check for `code.lua`, the `assets/` subdirectories and generated `.sgimg` files. Copying only `data.sgr` does not work.
-4. Install using VitaShell. When updating preserve data, settings and `save/`; never overwrite saves with an empty `save/` directory.
-5. The release performance configuration is optional. Back up `performance.cfg` before replacing it. A 60 FPS limit does not guarantee 60 FPS performance.
+1.5: install ShotgunKing2Vita-performance.vpk (SGKV00001), prepare a compatible user-owned APK with tools/prepare_data.py and copy the prepared contents into ux0:data/shotgunk2vita/. This app does not use data.sgr. Never mix folders.
 
-| Control | Action |
-|---|---|
-| D-pad / left stick | Select destination |
-| × | Confirm movement / selection |
-| Right stick | Aim |
-| R / L | Shoot / risky action |
-| □ / △ / ○ | Special / reload / cancel |
-| START / SELECT | Pause / information |
-| Rear touch, upper left / upper right | L1 / R1, change pages |
+Update only the VPK, preserving assets/save/. Back up saves, mods and performance.cfg. Steam defaults ship in app0:performance.cfg; a userdata performance.cfg overrides them. front_touch=1 enables touch mouse; lua_jit=0 uses the LuaJIT interpreter; profile_funcs/profile_lines enable detailed profiles; input_record/input_replay control recording/replay, with replay taking precedence. Each app uses its own replay/ folder.
 
-Front touch is disabled. Exit through the menu; on the runtime error screen press START to exit. Diagnostics stay in `ux0:data/shotgunk2vita/logs/`; share privately if they contain personal information.
-
-Console check: open menu, start a game, move and confirm with ×, aim/shoot/reload, switch rear-touch pages, pause, lose and retry, exit and reopen to check saves. Hardware acceptance for 00.78 remains pending.
+Console checklist: first SGR boot, menu, Throne, move/confirm, aim/shoot/reload, touch gestures, rear pages, pause, defeat/retry and save/reopen. Establish a mod-free baseline first. Hardware acceptance pending.

@@ -1,13 +1,5 @@
-# Roadmap
+# Roadmap — 0.78 alpha
 
-## Español
+ES: Próximos pasos: aceptación real de ambos VPK en Vita; primer arranque SGR y actualización sin perder saves; controles touch a distintas tasas de frames; compatibilidad de los cuatro mods y sus dependencias; guardado/replay y audio prolongado; cobertura de API SUGAR. Las optimizaciones Lua privadas son opcionales y no se redistribuyen. No se promete más FPS sin medición de consola.
 
-Versión actual: **00.78 — Shotgun King Vita+**. Publicación del código local actual, instrucciones bilingües y herramientas de extracción. Entregas y evidencia históricas conservadas localmente; informes antiguos retirados del árbol público.
-
-Pendiente: aceptación de consola mediante [instalación](INSTALLATION.md), medición por escena/configuración, audio, modos/cartas y persistencia de saves. Completar trazabilidad de dependencias LuaJIT para reproducir builds. No se ha demostrado un objetivo de FPS en todas las escenas.
-
-## English
-
-Current version: **00.78 — Shotgun King Vita+**. Publication of current local code, bilingual instructions and extraction tools. Historical deliveries and evidence remain local; obsolete reports are removed from the public tree.
-
-Pending: console acceptance using [installation](INSTALLATION.md#english), per-scene/configuration measurements, audio, modes/cards and save persistence. Complete LuaJIT dependency provenance for reproducible builds. No FPS target has been demonstrated across all scenes.
+EN: Next: hardware acceptance of both VPKs; first SGR boot and save-preserving updates; touch controls at varying frame rates; four-mod/dependency compatibility; saves/replay, long audio sessions and SUGAR API coverage. Private Lua optimizations are optional and not redistributed. No FPS improvement is claimed without console measurements.
